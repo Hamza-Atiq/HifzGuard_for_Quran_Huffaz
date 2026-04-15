@@ -1,0 +1,153 @@
+/* Quran Arabic font from Google Fonts CDN — Amiri Quran is purpose-built for the mushaf */
+@import url('https://fonts.googleapis.com/css2?family=Amiri+Quran&family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #f7f5f0;
+  --bg-card: #ffffff;
+  --ink: #0f172a;
+  --ink-muted: #475569;
+  --line: #e7e3da;
+  --teal: #0f766e;
+  --teal-soft: #ccfbf1;
+  --amber-soft: #fef3c7;
+  --amber-strong: #b45309;
+  --coral-soft: #ffe4e6;
+  --coral-strong: #be123c;
+}
+
+.dark {
+  --bg: #0b1220;
+  --bg-card: #111a2e;
+  --ink: #f1f5f9;
+  --ink-muted: #94a3b8;
+  --line: #1e293b;
+  --teal: #5eead4;
+  --teal-soft: #134e4a;
+  --amber-soft: #422006;
+  --amber-strong: #fde68a;
+  --coral-soft: #4c0519;
+  --coral-strong: #fda4af;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ============================================================
+   ARABIC TEXT — the most important piece of UX in this app.
+   Generous size + huge line height so tashkeel never collides.
+   ============================================================ */
+.arabic {
+  font-family: 'Amiri Quran', 'KFGQPC Uthmanic Script HAFS', 'Amiri', serif;
+  direction: rtl;
+  text-align: right;
+  font-size: 34px;
+  line-height: 2.4;
+  letter-spacing: 0;
+  word-spacing: 0.15em;
+  font-weight: 400;
+  color: var(--ink);
+}
+
+.arabic-md {
+  font-family: 'Amiri Quran', 'KFGQPC Uthmanic Script HAFS', 'Amiri', serif;
+  direction: rtl;
+  text-align: right;
+  font-size: 28px;
+  line-height: 2.3;
+}
+
+.arabic-sm {
+  font-family: 'Amiri Quran', 'KFGQPC Uthmanic Script HAFS', 'Amiri', serif;
+  direction: rtl;
+  text-align: right;
+  font-size: 22px;
+  line-height: 2.1;
+}
+
+/* Word-level diff highlights — the hero feature */
+.word {
+  display: inline-block;
+  padding: 4px 6px;
+  margin: 2px 1px;
+  border-radius: 8px;
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+.word-same {
+  background: transparent;
+}
+.word-diff {
+  background: var(--amber-soft);
+  color: var(--amber-strong);
+  box-shadow: 0 0 0 1px rgba(180, 83, 9, 0.18) inset;
+}
+.word-extra {
+  background: var(--coral-soft);
+  color: var(--coral-strong);
+  box-shadow: 0 0 0 1px rgba(190, 18, 60, 0.18) inset;
+}
+
+/* Soft card */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 28px rgba(15, 23, 42, 0.06);
+}
+
+/* Verse number ornament — circular Islamic-style badge */
+.ayah-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: var(--teal-soft);
+  color: var(--teal);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  border: 1px solid rgba(15, 118, 110, 0.2);
+}
+
+/* Pretty pill badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.badge-small  { background: #d1fae5; color: #065f46; }
+.badge-medium { background: #fef3c7; color: #92400e; }
+.badge-large  { background: #fee2e2; color: #991b1b; }
+
+.dark .badge-small  { background: #064e3b; color: #6ee7b7; }
+.dark .badge-medium { background: #422006; color: #fcd34d; }
+.dark .badge-large  { background: #450a0a; color: #fca5a5; }
+
+/* Smooth scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: var(--line); border-radius: 8px; }
+
+/* Subtle entrance animation */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fade-up 280ms ease both; }

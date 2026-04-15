@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -sL -o \"/tmp/mutashabihat_data.json\" \"https://raw.githubusercontent.com/Waqar144/Quran_Mutashabihat_Data/master/mutashabihat_data.json\")",
+      "Read(//tmp/**)",
+      "Bash(curl -sL \"https://api.github.com/repos/Waqar144/Quran_Mutashabihat_Data/contents/\")",
+      "Bash(curl -sL -o \"/tmp/mutashabiha_data.json\" \"https://raw.githubusercontent.com/Waqar144/Quran_Mutashabihat_Data/master/mutashabiha_data.json\")",
+      "Bash(mkdir -p \"D:/AI Journey/AI in 2026/Quran Foundation Hackathon/src/app/explorer\" \"D:/AI Journey/AI in 2026/Quran Foundation Hackathon/src/app/revision\" \"D:/AI Journey/AI in 2026/Quran Foundation Hackathon/src/app/self-test\" \"D:/AI Journey/AI in 2026/Quran Foundation Hackathon/src/app/auth/callback\" \"D:/AI Journey/AI in 2026/Quran Foundation Hackathon/src/app/api/quran/verses\" \"D:/AI Journey/AI in 2026/Quran Foundation Hackathon/src/app/api/quran/chapters\" \"D:/AI Journey/AI in 2026/Quran Foundation Hackathon/src/app/api/mutashabihat\" \"D:/AI Journey/AI in 2026/Quran Foundation Hackathon/src/app/api/auth/login\" \"D:/AI Journey/AI in 2026/Quran Foundation Hackathon/src/app/api/auth/callback\" \"D:/AI Journey/AI in 2026/Quran Foundation Hackathon/src/app/api/auth/logout\" \"D:/AI Journey/AI in 2026/Quran Foundation Hackathon/src/app/api/user/bookmarks\" \"D:/AI Journey/AI in 2026/Quran Foundation Hackathon/src/components\" \"D:/AI Journey/AI in 2026/Quran Foundation Hackathon/src/lib\" \"D:/AI Journey/AI in 2026/Quran Foundation Hackathon/src/types\" \"D:/AI Journey/AI in 2026/Quran Foundation Hackathon/src/data\" \"D:/AI Journey/AI in 2026/Quran Foundation Hackathon/public\")",
+      "Bash(cp \"/tmp/mutashabiha_data.json\" \"D:/AI Journey/AI in 2026/Quran Foundation Hackathon/src/data/mutashabihat_data.json\")",
+      "Bash(rmdir src/app/auth/callback src/app/auth)",
+      "Bash(node -e \"const d = require\\('./src/data/mutashabihat_data.json'\\); const keys = Object.keys\\(d\\); console.log\\('parahs:', keys.length, 'first:', keys.slice\\(0,3\\), 'last:', keys.slice\\(-3\\)\\); let total=0, pairs=0; for \\(const k of keys\\) { total += d[k].length; for \\(const e of d[k]\\) pairs += e.muts.length; } console.log\\('totalEntries:', total, 'pairs:', pairs\\); console.log\\('sample:', JSON.stringify\\(d['1'][0]\\)\\);\")",
+      "Bash(curl -sS -X POST \"https://prelive-oauth2.quran.foundation/oauth2/token\" -H \"Content-Type: application/x-www-form-urlencoded\" -u \"c05a2a02-b09b-4fb0-a5e9-0b840302b6a6:aPOqPju0gi4ViY9WOhY6jsC~2u\" -d \"grant_type=client_credentials&scope=content\")"
+    ]
+  }
+}
