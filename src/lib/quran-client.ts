@@ -40,33 +40,47 @@ export function isConfigured(): boolean {
  * ------------------------------------------------------------------ */
 
 const verseCache = new Map<string, Verse>();
+const inFlight = new Map<string, Promise<Verse>>();
 
 export async function fetchVerse(key: string): Promise<Verse> {
-  if (verseCache.has(key)) return verseCache.get(key)!;
+  const cached = verseCache.get(key);
+  if (cached) return cached;
 
-  const client = getClient();
-  let verse: Verse | null = null;
+  const pending = inFlight.get(key);
+  if (pending) return pending;
 
-  if (client) {
-    try {
-      const v: any = await client.verses.findByKey(key as any, {
-        words: true,
-        translations: [20],
-        fields: { textUthmani: true },
-        wordFields: { textUthmani: true },
-      } as any);
-      verse = normalizeVerse(v, key);
-    } catch (err) {
-      console.warn(`[quran-client] SDK fetch failed for ${key}, falling back: ${(err as Error).message}`);
+  const promise = (async (): Promise<Verse> => {
+    const client = getClient();
+    let verse: Verse | null = null;
+
+    if (client) {
+      try {
+        const v: any = await client.verses.findByKey(key as any, {
+          words: true,
+          translations: [20],
+          fields: { textUthmani: true },
+          wordFields: { textUthmani: true },
+        } as any);
+        verse = normalizeVerse(v, key);
+      } catch (err) {
+        console.warn(`[quran-client] SDK fetch failed for ${key}, falling back: ${(err as Error).message}`);
+      }
     }
-  }
 
-  if (!verse) {
-    verse = await fetchVerseFromPublicApi(key);
-  }
+    if (!verse) {
+      verse = await fetchVerseFromPublicApi(key);
+    }
 
-  verseCache.set(key, verse);
-  return verse;
+    verseCache.set(key, verse);
+    return verse;
+  })();
+
+  inFlight.set(key, promise);
+  try {
+    return await promise;
+  } finally {
+    inFlight.delete(key);
+  }
 }
 
 export async function fetchVerses(keys: string[]): Promise<Verse[]> {

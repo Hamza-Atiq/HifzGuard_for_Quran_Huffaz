@@ -20,65 +20,11 @@
 - **Mutashabihat Data:** Pre-bundled JSON from Waqar144/Quran_Mutashabihat_Data (GitHub)
 - **Deployment:** Vercel (for live demo link in submission)
 
-### Environment Variables
-
-```env
-QURAN_CLIENT_ID=<from Quran Foundation Request Access>
-QURAN_CLIENT_SECRET=<from Quran Foundation Request Access>
-NEXT_PUBLIC_QURAN_CLIENT_ID=<same client_id, for frontend OAuth redirect>
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-```
-
----
-
-## Architecture
-
-```
-src/
-├── app/
-│   ├── layout.tsx              # Root layout with RTL support, Quran fonts
-│   ├── page.tsx                # Landing / dashboard
-│   ├── explorer/
-│   │   └── page.tsx            # Mutashabihat Explorer (browse by parah/surah)
-│   ├── revision/
-│   │   └── page.tsx            # Parah Revision Mode
-│   ├── self-test/
-│   │   └── page.tsx            # Self-Test / Quiz Mode
-│   ├── api/
-│   │   ├── auth/
-│   │   │   ├── token/route.ts  # Backend token exchange (confidential client)
-│   │   │   └── callback/route.ts
-│   │   └── quran/
-│   │       └── [...proxy]/route.ts  # Proxy for Content API calls with server-side auth
-│   └── auth/
-│       └── callback/page.tsx   # OAuth redirect handler
-├── components/
-│   ├── AyahDisplay.tsx         # Single verse renderer (Arabic + translation)
-│   ├── MutashabihatCard.tsx    # Side-by-side similar verse comparison
-│   ├── DiffHighlighter.tsx     # Highlights word-level differences between similar ayat
-│   ├── ParahSelector.tsx       # Parah/Juz picker (1-30)
-│   ├── SurahSelector.tsx       # Surah picker (1-114)
-│   ├── StreakDisplay.tsx       # Shows current revision streak
-│   ├── QuizCard.tsx            # Self-test question card
-│   └── Navbar.tsx              # Navigation with auth state
-├── lib/
-│   ├── quran-client.ts         # QuranClient singleton (server-side, Content APIs)
-│   ├── user-api.ts             # User API helpers (bookmarks, streaks, goals, collections)
-│   ├── mutashabihat.ts         # Mutashabihat engine: load JSON, query, group, rank
-│   ├── diff.ts                 # Word-level Arabic text diff algorithm
-│   ├── auth.ts                 # OAuth2 PKCE helpers
-│   └── constants.ts            # Parah-to-verse mappings, surah metadata
-├── data/
-│   └── mutashabihat_data.json  # Pre-bundled from Waqar144 dataset
-└── types/
-    └── index.ts                # TypeScript interfaces
-```
-
 ---
 
 ## Feature Specifications
 
-### Feature 1: Mutashabihat Explorer (Priority: HIGHEST — build first)
+### Feature 1: Mutashabihat Explorer 
 
 **What it does:** User selects a Parah (1-30) or Surah. The app shows every verse in that range that has mutashabihat (similar verses elsewhere in the Quran). Tapping a verse opens a side-by-side comparison highlighting the exact words that differ.
 
@@ -107,7 +53,7 @@ src/
 - `GET /bookmarks` — retrieve saved pairs
 - `POST /collections` — create a "My Weak Mutashabihat" collection
 
-### Feature 2: Parah Revision Mode (Priority: HIGH)
+### Feature 2: Parah Revision Mode 
 
 **What it does:** User selects a parah they're revising. They navigate verse-by-verse. When they reach a verse that has mutashabihat, the app shows a proactive alert: "⚠️ This verse starts identically to Al-Imran 3:119 and An-Nisa 4:61 — pay attention here."
 
@@ -131,7 +77,7 @@ src/
 - `POST /goals` — set revision target (e.g., 1 parah per day)
 - `GET /goals/today` — check today's goal progress
 
-### Feature 3: Self-Test Mode (Priority: MEDIUM — cut if behind schedule)
+### Feature 3: Self-Test Mode 
 
 **What it does:** Shows the first few words of a verse that has mutashabihat. The user must identify which surah/location this specific version belongs to, or type/select how the verse continues. When they get it wrong, the app shows the verse they confused it with.
 
@@ -179,18 +125,6 @@ This is the most important UX aspect. Arabic text MUST render correctly:
 5. **Word-by-word rendering:** The API returns a `words` array. Each word object has `text_uthmani`, `translation`, and `position`. Use this for the diff highlighting feature.
 6. **Tashkeel visibility:** Always show full tashkeel (diacritical marks). Never strip them — they are essential for correct Quran reading.
 
-**CSS template for Arabic text:**
-```css
-.arabic-text {
-  direction: rtl;
-  text-align: right;
-  font-family: 'KFGQPC Uthmanic Script HAFS', 'Amiri', serif;
-  font-size: 28px;
-  line-height: 2.2;
-  letter-spacing: 0;
-}
-```
-
 **Diff highlighting approach:**
 - Compare two verses word-by-word using their `words` arrays
 - Words at the same position that match → default color
@@ -198,26 +132,6 @@ This is the most important UX aspect. Arabic text MUST render correctly:
 - Extra words (one verse is longer) → highlighted in a different color (coral/red)
 
 ---
-
-## OAuth2 Authentication Setup
-
-### Content APIs (server-side, no user login needed)
-
-Use `client_credentials` grant with `content` scope:
-
-```typescript
-// lib/quran-client.ts
-import { QuranClient } from '@quranjs/api';
-
-const client = new QuranClient({
-  clientId: process.env.QURAN_CLIENT_ID!,
-  clientSecret: process.env.QURAN_CLIENT_SECRET!,
-});
-
-export default client;
-```
-
-This handles token management automatically. Use this in Next.js API routes and Server Components.
 
 ### User APIs (requires user login)
 
@@ -252,24 +166,6 @@ Headers: `x-auth-token: <access_token>`, `x-client-id: <client_id>`
 - The app should feel reverent and clean — no flashy animations, no clutter
 - Use card-based layouts for verse comparisons
 - Badge system for mutashabih count (e.g., small green badge "2 similar", amber "5 similar", red "8+ similar")
-
----
-
-## Key Commands
-
-```bash
-# Install dependencies
-npm install
-
-# Run dev server
-npm run dev
-
-# Build for production
-npm run build
-
-# Deploy (if using Vercel CLI)
-vercel --prod
-```
 
 ---
 

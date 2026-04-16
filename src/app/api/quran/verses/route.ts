@@ -2,7 +2,10 @@ import { NextResponse } from 'next/server';
 import { fetchVerses } from '@/lib/quran-client';
 
 export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+
+// Quran text never changes — safe to cache aggressively at the edge.
+const CACHE_CONTROL =
+  'public, s-maxage=86400, stale-while-revalidate=604800';
 
 // GET /api/quran/verses?keys=2:14,3:119,4:61
 export async function GET(req: Request) {
@@ -17,7 +20,10 @@ export async function GET(req: Request) {
   }
   try {
     const verses = await fetchVerses(keys);
-    return NextResponse.json({ verses });
+    return NextResponse.json(
+      { verses },
+      { headers: { 'Cache-Control': CACHE_CONTROL } }
+    );
   } catch (err) {
     return NextResponse.json(
       { error: (err as Error).message },
