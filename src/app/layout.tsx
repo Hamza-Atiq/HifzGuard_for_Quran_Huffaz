@@ -20,10 +20,7 @@ export default function RootLayout({
           <Navbar />
           <main className="flex-1">{children}</main>
           <footer className="border-t border-[color:var(--line)] py-6 text-center text-sm text-[color:var(--ink-muted)]">
-            HifzGuard · Built for the Quran Foundation Hackathon · Verses by{' '}
-            <a className="underline hover:text-[color:var(--teal)]" href="https://quran.com" target="_blank" rel="noreferrer">
-              quran.com
-            </a>
+            HifzGuard
           </footer>
         </div>
       </body>

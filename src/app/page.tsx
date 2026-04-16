@@ -13,7 +13,7 @@ export default function HomePage() {
         </h1>
         <p className="mt-5 text-lg text-[color:var(--ink-muted)] leading-8">
           HifzGuard is a digital companion built around the <em>mutashabihat</em> — the similar
-          verses scattered through the Quran that trip up every hafiz. Browse them by parah,
+          verses scattered through the Quran that trip up every Hafiz. Browse them by parah,
           compare them side-by-side with word-level highlights, and revise without needing a sami.
         </p>
 
