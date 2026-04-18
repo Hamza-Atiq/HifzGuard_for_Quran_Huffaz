@@ -151,3 +151,118 @@ html, body {
   to   { opacity: 1; transform: translateY(0); }
 }
 .fade-up { animation: fade-up 280ms ease both; }
+
+/* ============================================================
+   MUSHAF VIEW — QCF font-based page rendering
+   ============================================================ */
+
+/* Each mushaf line: RTL flex row centered like a printed mushaf */
+.mushaf-line {
+  display: flex;
+  direction: rtl;
+  justify-content: center;
+  align-items: baseline;
+  gap: 2px;
+  min-height: 48px;
+  line-height: 1.9;
+  padding: 0 8px;
+}
+
+/* Individual QCF word glyph — inline, tappable */
+.mushaf-word {
+  display: inline-block;
+  cursor: pointer;
+  font-size: 28px;
+  padding: 1px 2px;
+  border-radius: 4px;
+  transition: background-color 150ms ease;
+  position: relative;
+}
+.mushaf-word:hover {
+  background: rgba(15, 118, 110, 0.08);
+}
+
+/* Mutashabihat color tiers on mushaf words — inspired by tajweed color coding */
+.mushaf-mut-small {
+  color: #047857;
+  text-shadow: 0 0 0 #047857;
+}
+.mushaf-mut-medium {
+  color: #b45309;
+  text-shadow: 0 0 0 #b45309;
+}
+.mushaf-mut-large {
+  color: #be123c;
+  text-shadow: 0 0 0 #be123c;
+}
+
+.dark .mushaf-mut-small {
+  color: #6ee7b7;
+  text-shadow: 0 0 0 #6ee7b7;
+}
+.dark .mushaf-mut-medium {
+  color: #fcd34d;
+  text-shadow: 0 0 0 #fcd34d;
+}
+.dark .mushaf-mut-large {
+  color: #fda4af;
+  text-shadow: 0 0 0 #fda4af;
+}
+
+/* Mushaf page frame */
+.mushaf-page-frame {
+  max-width: 620px;
+  margin: 0 auto;
+  border: 2px solid var(--line);
+  border-radius: 16px;
+  background: var(--bg-card);
+  padding: 20px 16px;
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.06);
+}
+
+/* Popup overlay for mutashabihat links */
+.mushaf-popup {
+  position: absolute;
+  z-index: 50;
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 16px;
+  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.16);
+  min-width: 220px;
+  top: 100%;
+  right: 50%;
+  transform: translateX(50%);
+  margin-top: 4px;
+}
+
+/* Surah header banner on mushaf page */
+.mushaf-surah-header {
+  text-align: center;
+  padding: 6px 24px;
+  margin: 4px 0;
+  border-radius: 999px;
+  background: var(--teal-soft);
+  color: var(--teal);
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Color legend */
+.mushaf-legend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+.mushaf-legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  margin-right: 4px;
+}

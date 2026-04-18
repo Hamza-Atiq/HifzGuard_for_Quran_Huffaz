@@ -9,7 +9,30 @@
       "Bash(cp \"/tmp/mutashabiha_data.json\" \"D:/AI Journey/AI in 2026/Quran Foundation Hackathon/src/data/mutashabihat_data.json\")",
       "Bash(rmdir src/app/auth/callback src/app/auth)",
       "Bash(node -e \"const d = require\\('./src/data/mutashabihat_data.json'\\); const keys = Object.keys\\(d\\); console.log\\('parahs:', keys.length, 'first:', keys.slice\\(0,3\\), 'last:', keys.slice\\(-3\\)\\); let total=0, pairs=0; for \\(const k of keys\\) { total += d[k].length; for \\(const e of d[k]\\) pairs += e.muts.length; } console.log\\('totalEntries:', total, 'pairs:', pairs\\); console.log\\('sample:', JSON.stringify\\(d['1'][0]\\)\\);\")",
-      "Bash(curl -sS -X POST \"https://prelive-oauth2.quran.foundation/oauth2/token\" -H \"Content-Type: application/x-www-form-urlencoded\" -u \"c05a2a02-b09b-4fb0-a5e9-0b840302b6a6:aPOqPju0gi4ViY9WOhY6jsC~2u\" -d \"grant_type=client_credentials&scope=content\")"
+      "Bash(curl -sS -X POST \"https://prelive-oauth2.quran.foundation/oauth2/token\" -H \"Content-Type: application/x-www-form-urlencoded\" -u \"c05a2a02-b09b-4fb0-a5e9-0b840302b6a6:aPOqPju0gi4ViY9WOhY6jsC~2u\" -d \"grant_type=client_credentials&scope=content\")",
+      "Bash(curl -s \"https://api.quran.com/api/v4/resources/mushafs\")",
+      "Bash(curl -s \"https://api.quran.com/api/v4/verses/by_page/1?mushaf=2&words=true&per_page=all\")",
+      "Bash(curl -s \"https://api.quran.com/api/v4/verses/by_page/1?mushaf=7&words=true&per_page=all\")",
+      "Bash(python3 -c \" import json,sys data=json.load\\(sys.stdin\\) print\\('=== PAGINATION ==='\\) print\\(json.dumps\\(data.get\\('pagination',{}\\), indent=2\\)\\) print\\(\\) print\\('=== VERSE COUNT ==='\\) print\\(len\\(data['verses']\\)\\) print\\(\\) for v in data['verses']: print\\(f\\\\\"Verse {v['verse_key']}: {len\\(v['words']\\)} words\\\\\"\\) for w in v['words'][:2]: print\\(f\\\\\" word pos={w['position']} line={w.get\\('line_number'\\)} page={w.get\\('page_number'\\)} code_v1={w.get\\('code_v1','?'\\)[:4]}... char_type={w.get\\('char_type_name'\\)}\\\\\"\\) \")",
+      "Bash(curl -s \"https://api.quran.com/api/v4/verses/by_page/3?mushaf=2&words=true&per_page=all\")",
+      "Bash(node -e ' *)",
+      "Bash(curl -s \"https://api.quran.com/api/v4/verses/by_page/3?mushaf=7&words=true&per_page=all\")",
+      "Bash(curl -s \"https://api.quran.com/api/v4/verses/by_page/604?mushaf=2&words=true&per_page=all\")",
+      "Bash(curl -s \"https://api.quran.com/api/v4/verses/by_page/605?mushaf=2&words=true&per_page=all\")",
+      "Bash(curl -s \"https://api.quran.com/api/v4/verses/by_page/700?mushaf=7&words=true&per_page=all\")",
+      "Bash(curl -s \"https://api.quran.com/api/v4/verses/by_page/848?mushaf=7&words=true&per_page=all\")",
+      "Bash(curl -s \"https://api.quran.com/api/v4/verses/by_page/100?mushaf=2&words=true&per_page=all\")",
+      "Bash(curl -s \"https://api.quran.com/api/v4/verses/by_page/100?mushaf=7&words=true&per_page=all\")",
+      "Bash(curl -s \"https://api.quran.com/api/v4/verses/by_page/100?mushaf=4&words=true&per_page=all\")",
+      "Bash(curl -s \"https://api.quran.com/api/v4/verses/by_page/50?mushaf=2&words=true&per_page=all\")",
+      "Bash(curl -sI \"https://static.qurancdn.com/fonts/quran/hafs/v2/woff2/p1.woff2\")",
+      "Bash(curl -sI \"https://static.qurancdn.com/fonts/quran/hafs/v1/woff2/p1.woff2\")",
+      "Bash(curl -s \"https://api.quran.com/api/v4/verses/by_page/50?mushaf=2&words=true&per_page=all&word_fields=code_v2,text_uthmani,line_number\")",
+      "Bash(curl -sI \"https://static.qurancdn.com/fonts/quran/indopak/nastaleeq-v1/woff2/p1.woff2\")",
+      "Bash(npm run *)",
+      "Bash(curl -s \"http://localhost:3000/api/quran/page?page=3\")",
+      "Bash(curl -s \"http://localhost:3000/mushaf\")",
+      "Bash(npx tsc *)"
     ]
   }
 }

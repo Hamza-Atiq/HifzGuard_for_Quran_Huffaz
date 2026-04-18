@@ -19,10 +19,16 @@ export default function HomePage() {
 
         <div className="mt-8 flex flex-wrap gap-3 justify-center">
           <Link
-            href="/explorer"
+            href="/mushaf"
             className="px-6 py-3 rounded-full bg-[color:var(--teal)] text-white font-semibold hover:opacity-95 shadow-lg shadow-teal-500/20 transition"
           >
-            Open Explorer →
+            Open Mushaf →
+          </Link>
+          <Link
+            href="/explorer"
+            className="px-6 py-3 rounded-full bg-[color:var(--bg-card)] border border-[color:var(--line)] font-semibold hover:border-[color:var(--teal)] hover:text-[color:var(--teal)] transition"
+          >
+            Explorer
           </Link>
           <Link
             href="/revision"
@@ -39,7 +45,12 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="mt-20 grid md:grid-cols-3 gap-5">
+      <section className="mt-20 grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+        <Feature
+          title="Mushaf View"
+          desc="Read the Quran page-by-page exactly like your printed mushaf. Mutashabihat verses are color-coded — tap any colored word to see its similar verses."
+          href="/mushaf"
+        />
         <Feature
           title="Mutashabihat Explorer"
           desc="Browse every similar-verse pair in any parah or surah. Tap to compare side-by-side with word-level diff highlighting."
