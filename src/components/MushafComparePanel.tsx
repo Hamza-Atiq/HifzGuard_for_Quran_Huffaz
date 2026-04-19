@@ -54,7 +54,7 @@ export default function MushafComparePanel({ sourceKey, similarKey, onClose }: P
   const { left, right } = diffVerses(source.words, similar.words);
 
   return (
-    <div className="card p-4 space-y-3">
+    <div className="card p-4 space-y-2">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-[color:var(--ink)]">
@@ -115,8 +115,8 @@ function VerseBlock({
   const surahName = SURAH_NAMES[s - 1]?.en || `Surah ${s}`;
 
   return (
-    <div className={`rounded-xl border-l-4 ${accentBorder} bg-[color:var(--bg)] p-4`}>
-      <div className="flex items-center justify-between mb-2">
+    <div className={`rounded-xl border-l-4 ${accentBorder} bg-[color:var(--bg)] p-3`}>
+      <div className="flex items-center justify-between mb-1">
         <span className="text-xs font-semibold uppercase tracking-wider text-[color:var(--teal)]">
           {label} — {surahName}
         </span>

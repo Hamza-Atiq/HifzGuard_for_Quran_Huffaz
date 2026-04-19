@@ -1,5 +1,5 @@
 'use client';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import MushafPage from '@/components/MushafPage';
 import MushafComparePanel from '@/components/MushafComparePanel';
 
@@ -19,6 +19,9 @@ export default function MushafView() {
   const [pageInput, setPageInput] = useState('1');
   const [parah, setParah] = useState(1);
   const [comparison, setComparison] = useState<Comparison | null>(null);
+  const leftPanelRef = useRef<HTMLDivElement>(null);
+  const comparePanelRef = useRef<HTMLDivElement>(null);
+  const rightPanelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     for (let i = PARAH_START_PAGES.length - 1; i >= 0; i--) {
@@ -47,6 +50,26 @@ export default function MushafView() {
 
   const handleSelectSimilar = useCallback((sourceKey: string, similarKey: string) => {
     setComparison({ sourceKey, similarKey });
+    // Auto-scroll: on desktop scroll left panel to top; on mobile scroll page to comparison
+    requestAnimationFrame(() => {
+      if (window.innerWidth >= 1024) {
+        leftPanelRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        comparePanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  }, []);
+
+  // Match left panel max-height to right panel height
+  useEffect(() => {
+    const right = rightPanelRef.current;
+    const left = leftPanelRef.current;
+    if (!right || !left) return;
+    const observer = new ResizeObserver(([entry]) => {
+      left.style.maxHeight = `${entry.contentRect.height}px`;
+    });
+    observer.observe(right);
+    return () => observer.disconnect();
   }, []);
 
   // Keyboard navigation
@@ -68,7 +91,7 @@ export default function MushafView() {
   }, [page]);
 
   return (
-    <div className="max-w-[1400px] mx-auto px-4 py-6">
+    <div className="max-w-[1100px] mx-auto px-4 py-6">
       {/* Header */}
       <div className="text-center mb-5 fade-up">
         <h1 className="text-2xl font-bold text-[color:var(--ink)]">Mushaf View</h1>
@@ -78,9 +101,12 @@ export default function MushafView() {
       </div>
 
       {/* Split layout */}
-      <div className="flex flex-col lg:flex-row gap-5">
+      <div className="flex flex-col lg:flex-row gap-3">
         {/* LEFT PANEL — controls + comparison */}
-        <div className="lg:w-[420px] shrink-0 space-y-4 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
+        <div
+          ref={leftPanelRef}
+          className="lg:w-[420px] shrink-0 space-y-4 lg:sticky lg:top-20 lg:self-start lg:overflow-y-auto lg:max-h-[calc(100vh-6rem)]"
+        >
           {/* Controls card */}
           <div className="card p-4 space-y-3">
             <h2 className="text-sm font-semibold text-[color:var(--ink)]">Navigation</h2>
@@ -141,15 +167,15 @@ export default function MushafView() {
             {/* Color legend */}
             <div className="flex flex-wrap gap-3 pt-2 border-t border-[color:var(--line)] text-xs text-[color:var(--ink-muted)]">
               <span>
-                <span className="inline-block w-2.5 h-2.5 rounded-full mr-1" style={{ background: '#047857' }} />
+                <span className="inline-block w-2.5 h-2.5 rounded-full mr-1 bg-emerald-700" />
                 1 similar
               </span>
               <span>
-                <span className="inline-block w-2.5 h-2.5 rounded-full mr-1" style={{ background: '#b45309' }} />
+                <span className="inline-block w-2.5 h-2.5 rounded-full mr-1 bg-amber-700" />
                 2-3 similar
               </span>
               <span>
-                <span className="inline-block w-2.5 h-2.5 rounded-full mr-1" style={{ background: '#be123c' }} />
+                <span className="inline-block w-2.5 h-2.5 rounded-full mr-1 bg-rose-700" />
                 4+ similar
               </span>
             </div>
@@ -160,6 +186,7 @@ export default function MushafView() {
           </div>
 
           {/* Comparison panel */}
+          <div ref={comparePanelRef}>
           {comparison ? (
             <MushafComparePanel
               sourceKey={comparison.sourceKey}
@@ -174,10 +201,11 @@ export default function MushafView() {
               </p>
             </div>
           )}
+          </div>
         </div>
 
         {/* RIGHT PANEL — mushaf page */}
-        <div className="flex-1 min-w-0 overflow-hidden">
+        <div ref={rightPanelRef} className="flex-1 min-w-0 overflow-hidden">
           <MushafPage pageNumber={page} onSelectSimilar={handleSelectSimilar} />
 
           {/* Bottom navigation */}
