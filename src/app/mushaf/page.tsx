@@ -60,16 +60,27 @@ export default function MushafView() {
     });
   }, []);
 
-  // Match left panel max-height to right panel height
+  // Match left panel max-height to right panel height — desktop only
   useEffect(() => {
     const right = rightPanelRef.current;
     const left = leftPanelRef.current;
     if (!right || !left) return;
-    const observer = new ResizeObserver(([entry]) => {
-      left.style.maxHeight = `${entry.contentRect.height}px`;
-    });
+    const apply = (height: number) => {
+      if (window.innerWidth >= 1024) {
+        left.style.maxHeight = `${height}px`;
+      } else {
+        left.style.maxHeight = '';
+      }
+    };
+    const observer = new ResizeObserver(([entry]) => apply(entry.contentRect.height));
     observer.observe(right);
-    return () => observer.disconnect();
+    // Also clear on window resize (e.g. rotate phone to desktop or vice versa)
+    const onResize = () => apply(right.getBoundingClientRect().height);
+    window.addEventListener('resize', onResize);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', onResize);
+    };
   }, []);
 
   // Keyboard navigation
