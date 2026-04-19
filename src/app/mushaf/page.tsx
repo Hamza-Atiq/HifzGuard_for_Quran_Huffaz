@@ -177,7 +177,7 @@ export default function MushafView() {
         </div>
 
         {/* RIGHT PANEL — mushaf page */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 overflow-hidden">
           <MushafPage pageNumber={page} onSelectSimilar={handleSelectSimilar} />
 
           {/* Bottom navigation */}

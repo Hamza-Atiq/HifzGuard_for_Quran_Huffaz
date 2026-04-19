@@ -38,6 +38,7 @@ html, body {
   color: var(--ink);
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 
 /* ============================================================
@@ -168,11 +169,12 @@ html, body {
   padding: 0 8px;
 }
 
-/* Individual QCF word glyph — inline, tappable */
+/* Individual QCF word glyph — inline, tappable. Font-size scales
+   with viewport so a dense mushaf line fits narrow phones. */
 .mushaf-word {
   display: inline-block;
   cursor: pointer;
-  font-size: 28px;
+  font-size: clamp(17px, 4.6vw, 28px);
   padding: 1px 2px;
   border-radius: 4px;
   transition: background-color 150ms ease;
@@ -230,6 +232,7 @@ html, body {
   padding: 12px 16px;
   box-shadow: 0 8px 32px rgba(15, 23, 42, 0.16);
   min-width: 220px;
+  max-width: calc(100vw - 24px);
   top: 100%;
   right: 50%;
   transform: translateX(50%);
@@ -265,4 +268,22 @@ html, body {
   height: 10px;
   border-radius: 999px;
   margin-right: 4px;
+}
+
+/* Compact the mushaf frame on phones so dense pages fit the viewport */
+@media (max-width: 640px) {
+  .mushaf-page-frame {
+    padding: 12px 6px;
+    border-radius: 12px;
+  }
+  .mushaf-line {
+    gap: 1px;
+    padding: 0 2px;
+    min-height: 40px;
+    line-height: 1.75;
+  }
+  .mushaf-surah-header {
+    font-size: 12px;
+    padding: 5px 16px;
+  }
 }
