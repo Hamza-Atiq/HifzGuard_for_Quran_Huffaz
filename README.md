@@ -1,82 +1,183 @@
-# HifzGuard — Mutashabihat Hifz Companion
+# CLAUDE.md — HifzGuard: Mutashabihat Hifz Companion
 
-A modern web companion for huffaz (memorizers of the Quran) that solves the #1 pain point in memorization: **mutashabihat** — the verses that look or sound nearly identical but live in different surahs.
+## Project Overview
 
-Built for the **Quran Foundation Hackathon**.
+**HifzGuard** is a web app. It solves the #1 pain point for Huffaz (people who memorize the Quran): confusing similar verses (mutashabihat) during memorization and revision.
 
-## Features
+**Core problem:** When a hafiz memorizes the Quran, many verses share identical or near-identical openings, phrases, or structures across different surahs. For example, Surah Al-Baqarah 2:14 starts with words that appear identically in 3+ other locations. Traditionally, a hafiz needs a second person (sami) to catch mistakes, and printed mutashabihat books to study similarities. This app digitizes and supercharges both.
 
-| Feature | What it does |
-|---|---|
-| **Mutashabihat Explorer** | Browse every similar-verse pair in any parah or surah. Tap to compare side-by-side with word-level diff highlighting. |
-| **Parah Revision** | Walk verse-by-verse through a parah. The app warns you the moment you reach a verse with similar siblings. |
-| **Self-Test** | Quiz yourself: we show the opening words of a mutashabih verse, you pick which location it's from. Wrong answers auto-bookmark. |
+**Hackathon requirement:** Must use at least ONE Quran Foundation Content API AND at least ONE User API. See `API_REFERENCE.md` for details.
 
-## Tech
+---
 
-- **Next.js 14** (App Router) + TypeScript + Tailwind CSS
-- **@quranjs/api** for Quran Foundation Content APIs (Client Credentials)
-- **OAuth2 + PKCE** for Quran Foundation User APIs (bookmarks, streaks, activity days)
-- **Mutashabihat dataset** from [Waqar144/Quran_Mutashabihat_Data](https://github.com/Waqar144/Quran_Mutashabihat_Data)
-- **Public api.quran.com fallback** so the app renders real verses out-of-the-box even before Quran Foundation credentials are issued.
+## Tech Stack
 
-## Setup
+- **Framework:** Next.js 14+ (App Router)
+- **Language:** TypeScript
+- **Styling:** Tailwind CSS
+- **Quran API SDK:** `@quranjs/api` (npm package)
+- **Auth:** Quran Foundation OAuth2 (Authorization Code + PKCE for User APIs, Client Credentials for Content APIs)
+- **Mutashabihat Data:** Pre-bundled JSON from Waqar144/Quran_Mutashabihat_Data (GitHub)
+- **Deployment:** Vercel (for live demo link in submission)
 
-```bash
-cp .env.local.example .env.local
-# fill in QURAN_CLIENT_ID + QURAN_CLIENT_SECRET from
-# https://api-docs.quran.foundation/request-access
+---
 
-npm install
-npm run dev
-```
+## Feature Specifications
 
-Open http://localhost:3000.
+### Feature 1: Mutashabihat Explorer 
 
-## Architecture
+**What it does:** User selects a Parah (1-30) or Surah. The app shows every verse in that range that has mutashabihat (similar verses elsewhere in the Quran). Tapping a verse opens a side-by-side comparison highlighting the exact words that differ.
 
-```
-src/
-├── app/
-│   ├── layout.tsx, page.tsx                  Landing page + global layout
-│   ├── explorer/, revision/, self-test/      Three feature pages
-│   └── api/
-│       ├── quran/verses/                     Server-side Content API proxy
-│       ├── mutashabihat/                     Mutashabihat query API
-│       ├── auth/login, auth/callback         OAuth2 PKCE flow
-│       └── user/bookmarks                    User API proxy
-├── components/
-│   ├── Navbar, AyahDisplay
-│   ├── DiffHighlighter                       LCS-based word alignment + highlight
-│   ├── MutashabihatCard                      Lazy-loaded comparison card
-│   └── ParahSelector, SurahSelector
-├── lib/
-│   ├── constants.ts                          Surah meta, parah ranges, abs↔surah:ayah
-│   ├── mutashabihat.ts                       Engine over the bundled JSON
-│   ├── diff.ts                               Word-level LCS diff (tashkeel-normalized)
-│   ├── quran-client.ts                       SDK + public API fallback
-│   ├── auth.ts                               OAuth2 PKCE helpers
-│   └── user-api.ts                           Bookmark / streak / activity helpers
-└── data/
-    └── mutashabihat_data.json                ~5400 mutashabihat entries
-```
+**User flow:**
+1. User lands on Explorer page
+2. Selects Parah 1 (or Surah Al-Baqarah)
+3. Sees a scrollable list of verses, each tagged with a badge: "3 similar" or "5 similar"
+4. Taps a verse → expands to show all similar verses side-by-side
+5. Word-level differences are highlighted (e.g., different word in amber, identical words in default color)
+6. Each similar verse shows its surah name and verse number for reference
+7. User can bookmark a difficult mutashabih pair (User API: Bookmarks)
 
-## Arabic Rendering Notes
+**Data flow:**
+- Load `mutashabihat_data.json` → filter entries by parah/surah range
+- For each entry, fetch verse text via Content API (`client.verses.findByKey("2:14", { words: true })`)
+- Fetch all matching verse texts
+- Run word-level diff to find differences
+- Display side-by-side with highlights
 
-Arabic readability is treated as the highest UX priority:
+**Content API usage:**
+- `verses.findByKey(key, { words: true, translations: [20] })` — get verse with word-by-word data
+- `chapters.findAll()` — for surah names in the UI
 
-- **Font**: Amiri Quran (Google Fonts), purpose-built for the mushaf with full tashkeel.
-- **Size**: 34px on the main verse, 28px in comparison cards, 22px small.
-- **Line height**: 2.4 / 2.3 / 2.1 — tashkeel never collides with the line above.
-- **Diff highlighting**: LCS alignment normalized for tashkeel, then highlighted in amber (different word) or coral (extra word). Identical words stay in the default color so the eye is drawn straight to the differences.
+**User API usage:**
+- `POST /bookmarks` — save difficult mutashabih pairs
+- `GET /bookmarks` — retrieve saved pairs
+- `POST /collections` — create a "My Weak Mutashabihat" collection
 
-## Quran Foundation API Usage
+### Feature 2: Parah Revision Mode 
 
-| Required | API | Used for |
-|---|---|---|
-| ✅ Content API | `verses.findByKey` (via @quranjs/api) | Fetch Uthmani text + word-by-word data for diff highlighting |
-| ✅ User API | `POST /bookmarks`, `POST /activity-days`, `GET /streaks` | Save difficult mutashabihat, log revision sessions, track streak |
+**What it does:** User selects a parah they're revising. They navigate verse-by-verse. When they reach a verse that has mutashabihat, the app shows a proactive alert: "⚠️ This verse starts identically to Al-Imran 3:119 and An-Nisa 4:61 — pay attention here."
 
-## License
+**Difficulty categorization:**
+- **Small mutashabih:** Only 1-2 words differ (e.g., same opening, different ending word)
+- **Medium mutashabih:** Middle section differs but opening and closing are identical
+- **Large mutashabih:** Entire opening phrase (3+ words) is shared across 3+ locations
 
-MIT — for the Quran Foundation Hackathon.
+**User flow:**
+1. Select parah number
+2. Navigate verse by verse (prev/next buttons, or swipe)
+3. Normal verses show cleanly with Arabic text + translation
+4. Mutashabih verses show with an alert banner + quick-compare panel
+5. User can tap "Show all similar" to see full side-by-side (reuses Explorer component)
+6. Progress is tracked via Activity Days API
+7. Streak maintained via Streaks API
+
+**User API usage:**
+- `POST /activity-days` — log daily revision activity
+- `GET /streaks` — display current streak
+- `POST /goals` — set revision target (e.g., 1 parah per day)
+- `GET /goals/today` — check today's goal progress
+
+### Feature 3: Self-Test Mode 
+
+**What it does:** Shows the first few words of a verse that has mutashabihat. The user must identify which surah/location this specific version belongs to, or type/select how the verse continues. When they get it wrong, the app shows the verse they confused it with.
+
+**User flow:**
+1. Select parah or surah to test on
+2. App shows first 3-4 words of a mutashabih verse
+3. Multiple choice: "Where does this verse appear?" with options being the different locations
+4. Correct → green, move on. Wrong → shows side-by-side comparison of what they confused
+5. Wrong answers auto-bookmarked for later review
+6. Session results posted as activity
+
+**User API usage:**
+- `POST /bookmarks` — auto-save wrong answers
+- `POST /activity-days` — log test sessions
+- `GET /streaks` — maintain streak
+
+---
+
+## Mutashabihat Data Structure
+
+See `MUTASHABIHAT_DATA.md` for full specification of the data format.
+
+**Key points:**
+- Source: https://github.com/Waqar144/Quran_Mutashabihat_Data
+- Format: JSON array of objects
+- Each object has: `src` (source ayah — absolute number or surah:ayah), `muts` (array of matching absolute ayah numbers), `ctx` (boolean — whether context from next ayah is needed)
+- Total: ~5400 entries covering the entire Quran
+- Bundle this file at `src/data/mutashabihat_data.json`
+
+You will need a mapping utility to convert between absolute ayah numbers and surah:ayah format. The Quran has 6236 ayat total. Build a lookup table using the surah metadata (number of verses per surah).
+
+---
+
+## Arabic Text Rendering — CRITICAL
+
+This is the most important UX aspect. Arabic text MUST render correctly:
+
+1. **Direction:** All Arabic text containers must have `dir="rtl"` and `text-align: right`
+2. **Font:** Use a proper Quran font. Options:
+   - KFGQPC Uthmanic Script HAFS (recommended, used by Quran.com)
+   - Load via Google Fonts or self-host from Quran Foundation CDN
+   - The Content API returns text in `text_uthmani` field — this is the Uthmanic script with full tashkeel (diacritics)
+3. **Font size:** Arabic Quran text should be large and readable: minimum 24px, ideally 28-32px
+4. **Line height:** Arabic with tashkeel needs generous line-height: at least 2.0 or 2.2
+5. **Word-by-word rendering:** The API returns a `words` array. Each word object has `text_uthmani`, `translation`, and `position`. Use this for the diff highlighting feature.
+6. **Tashkeel visibility:** Always show full tashkeel (diacritical marks). Never strip them — they are essential for correct Quran reading.
+
+**Diff highlighting approach:**
+- Compare two verses word-by-word using their `words` arrays
+- Words at the same position that match → default color
+- Words that differ → highlighted background (amber/yellow)
+- Extra words (one verse is longer) → highlighted in a different color (coral/red)
+
+---
+
+### User APIs (requires user login)
+
+Use Authorization Code flow with PKCE:
+
+1. **Login button** redirects user to: `https://oauth.quran.com/oauth2/auth?client_id=...&response_type=code&redirect_uri=...&scope=openid+profile+bookmark.crud+collection.crud+goal.crud+streak.read+activityday.crud&code_challenge=...&code_challenge_method=S256`
+2. **Callback** receives authorization code at `/auth/callback`
+3. **Backend** exchanges code for tokens at `POST https://oauth.quran.com/oauth2/token` with client_secret (confidential client)
+4. **Access token** stored in httpOnly cookie or session, used for User API calls
+5. **Refresh** handled server-side when token expires
+
+Required OAuth2 scopes:
+- `openid` — for OIDC
+- `profile` — user info
+- `bookmark.crud` — create/read/update/delete bookmarks
+- `collection.crud` — manage collections
+- `goal.crud` — reading goals
+- `streak.read` — read streaks
+- `activityday.crud` — log activity
+
+User API base URL: `https://api.quran.com/api/qdc/user/v1/` (check docs for exact URL)
+Headers: `x-auth-token: <access_token>`, `x-client-id: <client_id>`
+
+---
+
+## Styling Guidelines
+
+- Use Tailwind CSS with a clean, modern design
+- Color scheme: Deep teal/green primary (Islamic aesthetic), warm amber for highlights, clean white/gray backgrounds
+- Dark mode support (many users read Quran at night)
+- Mobile-first responsive design (most huffaz will use phones)
+- The app should feel reverent and clean — no flashy animations, no clutter
+- Use card-based layouts for verse comparisons
+- Badge system for mutashabih count (e.g., small green badge "2 similar", amber "5 similar", red "8+ similar")
+
+---
+
+## Important Links
+
+- Quran Foundation API Docs: https://api-docs.quran.foundation
+- JS SDK: https://www.npmjs.com/package/@quranjs/api
+- OAuth2 Tutorial: https://api-docs.quran.foundation/docs/tutorials/oidc/getting-started-with-oauth2
+- User APIs Quickstart: https://api-docs.quran.foundation/docs/tutorials/oidc/user-apis-quickstart
+- Request Access (get client_id): https://api-docs.quran.foundation/request-access
+- Mutashabihat Dataset: https://github.com/Waqar144/Quran_Mutashabihat_Data
+- Font Rendering Tutorial: https://api-docs.quran.foundation/docs/tutorials/fonts/font-rendering
+- Hackathon Page: https://launch.provisioncapital.com/quran-hackathon
+- Hackathon Terms: https://launch.provisioncapital.com/quran-hackathon/terms
+- API Support: Hackathon@quran.com
