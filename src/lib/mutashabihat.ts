@@ -14,25 +14,43 @@ import type { MutashabihEntry, VerseRef } from '@/types';
  * so every raw value is one less than the spec's 1-based scheme. We add 1 on load
  * to align with Waqar144's `N.txt` line format and the Content API.
  */
+/**
+ * `ayah` is usually a single absolute number, but ~95 entries in the dataset
+ * use an array like [53, 54] to represent a multi-ayah mutashabih (e.g.
+ * "2:47-48 together match 2:122-123 together"). We collapse those to the
+ * first ayah and set needsContext, so the compare card shows the starting
+ * verse and the UI cues the reader that continuation matters.
+ */
+type RawAyah = number | number[];
 type RawEntry = {
-  src: { ayah: number };
-  muts: Array<{ ayah: number }>;
+  src: { ayah: RawAyah };
+  muts: Array<{ ayah: RawAyah }>;
   ctx?: number;
 };
 type RawData = Record<string, RawEntry[]>;
 
 const data = rawData as RawData;
 
-function toRef(rawAbsolute: number): VerseRef {
-  const { surah, ayah } = absoluteToSurahAyah(rawAbsolute + 1);
+function firstAyah(v: RawAyah): number {
+  return Array.isArray(v) ? v[0] : v;
+}
+
+function isMulti(v: RawAyah): boolean {
+  return Array.isArray(v) && v.length > 1;
+}
+
+function toRef(rawAbsolute: RawAyah): VerseRef {
+  const { surah, ayah } = absoluteToSurahAyah(firstAyah(rawAbsolute) + 1);
   return { surah, ayah, key: makeKey(surah, ayah) };
 }
 
 function rawToEntry(raw: RawEntry, parah: number): MutashabihEntry {
+  const multi =
+    isMulti(raw.src.ayah) || raw.muts.some((m) => isMulti(m.ayah));
   return {
     src: toRef(raw.src.ayah),
     similar: raw.muts.map((m) => toRef(m.ayah)),
-    needsContext: raw.ctx !== undefined && raw.ctx > 0,
+    needsContext: multi || (raw.ctx !== undefined && raw.ctx > 0),
     parah,
   };
 }

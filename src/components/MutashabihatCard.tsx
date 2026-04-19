@@ -1,8 +1,9 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { MutashabihEntry, Verse, Difficulty } from '@/types';
 import AyahDisplay from './AyahDisplay';
 import DiffHighlighter from './DiffHighlighter';
+import { nextVerseKey } from '@/lib/constants';
 
 interface Props {
   entry: MutashabihEntry & { difficulty?: Difficulty };
@@ -27,7 +28,13 @@ export default function MutashabihatCard({ entry, defaultExpanded = false }: Pro
     if (!expanded || verses) return;
     setLoading(true);
     setError(null);
-    const allKeys = [entry.src.key, ...entry.similar.map((s) => s.key)];
+    const primary = [entry.src.key, ...entry.similar.map((s) => s.key)];
+    // When the mutashabih only makes sense with continuation, pull the next
+    // ayah for source + each match too so the card can render context below.
+    const contextKeys = entry.needsContext
+      ? primary.map((k) => nextVerseKey(k)).filter((k): k is string => !!k)
+      : [];
+    const allKeys = Array.from(new Set([...primary, ...contextKeys]));
     fetch(`/api/quran/verses?keys=${allKeys.join(',')}`)
       .then((r) => r.json())
       .then((j) => {
@@ -37,6 +44,12 @@ export default function MutashabihatCard({ entry, defaultExpanded = false }: Pro
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [expanded, entry, verses]);
+
+  const verseByKey = useMemo(() => {
+    const m = new Map<string, Verse>();
+    for (const v of verses || []) m.set(v.key, v);
+    return m;
+  }, [verses]);
 
   const difficulty = entry.difficulty ?? (entry.similar.length >= 4 ? 'large' : entry.similar.length >= 2 ? 'medium' : 'small');
 
@@ -70,7 +83,11 @@ export default function MutashabihatCard({ entry, defaultExpanded = false }: Pro
             {entry.similar.length} similar · {diffLabel[difficulty]}
           </span>
           {entry.needsContext && (
-            <span className="badge" style={{ background: '#e0e7ff', color: '#3730a3' }}>
+            <span
+              className="badge"
+              style={{ background: '#e0e7ff', color: '#3730a3' }}
+              title="This mutashabih continues into the next ayah — open Compare to see the continuation alongside."
+            >
               + context
             </span>
           )}
@@ -96,6 +113,11 @@ export default function MutashabihatCard({ entry, defaultExpanded = false }: Pro
         Similar to: {entry.similar.map((s) => s.key).join('  ·  ')}
       </p>
 
+      {expanded && entry.needsContext && (
+        <p className="text-xs text-[color:var(--ink-muted)] -mt-1 mb-3 italic">
+          Context: this mutashabih extends into the next ayah — continuation shown beneath each pair.
+        </p>
+      )}
       {expanded && (
         <div className="mt-4">
           {loading && (
@@ -108,14 +130,67 @@ export default function MutashabihatCard({ entry, defaultExpanded = false }: Pro
               Couldn't load verses: {error}
             </div>
           )}
-          {verses && verses.length >= 2 && (
+          {verses && verseByKey.get(entry.src.key) && (
             <div className="space-y-4">
-              {verses.slice(1).map((m, i) => (
-                <DiffHighlighter key={m.key} source={verses[0]} match={m} size="md" />
-              ))}
+              {entry.similar.map((sim) => {
+                const srcVerse = verseByKey.get(entry.src.key)!;
+                const matchVerse = verseByKey.get(sim.key);
+                if (!matchVerse) return null;
+                const srcCtx = entry.needsContext
+                  ? verseByKey.get(nextVerseKey(entry.src.key) || '')
+                  : undefined;
+                const matchCtx = entry.needsContext
+                  ? verseByKey.get(nextVerseKey(sim.key) || '')
+                  : undefined;
+                return (
+                  <div key={sim.key} className="space-y-3">
+                    <DiffHighlighter source={srcVerse} match={matchVerse} size="md" />
+                    {srcCtx && matchCtx ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-[color:var(--ink-muted)] px-1">
+                          <span>↳ continuation</span>
+                          <span className="h-px flex-1 bg-[color:var(--line)]" />
+                          <span>{srcCtx.key} · {matchCtx.key}</span>
+                        </div>
+                        <DiffHighlighter source={srcCtx} match={matchCtx} size="sm" />
+                      </div>
+                    ) : (srcCtx || matchCtx) ? (
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <ContinuationBlock verse={srcCtx} />
+                        <ContinuationBlock verse={matchCtx} />
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
+      )}
+    </div>
+  );
+}
+
+function ContinuationBlock({ verse }: { verse: Verse | undefined }) {
+  if (!verse) {
+    return (
+      <div className="rounded-xl border border-dashed border-[color:var(--line)] p-4 text-center text-xs text-[color:var(--ink-muted)]">
+        No continuation (end of surah or Quran).
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-xl border border-[color:var(--line)] bg-[color:var(--bg-card)]/60 p-4">
+      <div className="flex items-center justify-between mb-2 text-[11px] uppercase tracking-wider text-[color:var(--ink-muted)]">
+        <span>↳ continues at {verse.key}</span>
+      </div>
+      <p className="arabic-sm" dir="rtl">
+        {verse.textUthmani}
+      </p>
+      {verse.translation && (
+        <p className="mt-3 text-[13px] leading-6 text-[color:var(--ink-muted)] border-l-2 border-[color:var(--teal)]/30 pl-3">
+          {verse.translation}
+        </p>
       )}
     </div>
   );

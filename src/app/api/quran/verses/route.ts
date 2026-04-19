@@ -15,8 +15,8 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'missing keys param' }, { status: 400 });
   }
   const keys = keysParam.split(',').map((k) => k.trim()).filter(Boolean);
-  if (keys.length > 25) {
-    return NextResponse.json({ error: 'too many keys (max 25)' }, { status: 400 });
+  if (keys.length > 50) {
+    return NextResponse.json({ error: 'too many keys (max 50)' }, { status: 400 });
   }
   try {
     const verses = await fetchVerses(keys);

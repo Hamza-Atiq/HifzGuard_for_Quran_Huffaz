@@ -144,7 +144,7 @@ export const TOTAL_AYAT = CUMSUM[114]; // 6236
 
 /** Convert absolute ayah number (1..6236) → { surah, ayah } (both 1-indexed). */
 export function absoluteToSurahAyah(absolute: number): { surah: number; ayah: number } {
-  if (absolute < 1 || absolute > TOTAL_AYAT) {
+  if (typeof absolute !== 'number' || !Number.isFinite(absolute) || absolute < 1 || absolute > TOTAL_AYAT) {
     throw new Error(`Absolute ayah ${absolute} out of range`);
   }
   // Binary search for the largest i where CUMSUM[i] < absolute
@@ -168,6 +168,16 @@ export function surahAyahToAbsolute(surah: number, ayah: number): number {
 
 export function makeKey(surah: number, ayah: number): string {
   return `${surah}:${ayah}`;
+}
+
+/** Key of the ayah immediately after `key`. Rolls into the next surah. Returns null at 114:6. */
+export function nextVerseKey(key: string): string | null {
+  const [s, a] = key.split(':').map(Number);
+  if (!Number.isFinite(s) || !Number.isFinite(a)) return null;
+  const abs = surahAyahToAbsolute(s, a);
+  if (abs >= TOTAL_AYAT) return null;
+  const { surah, ayah } = absoluteToSurahAyah(abs + 1);
+  return makeKey(surah, ayah);
 }
 
 /** Standard parah/juz boundaries. parah → { startSurah, startAyah, endSurah, endAyah } */
