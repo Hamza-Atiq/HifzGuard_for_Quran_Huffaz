@@ -1,183 +1,97 @@
-# CLAUDE.md — HifzGuard: Mutashabihat Hifz Companion
+# HifzGuard — A Companion for the Hifz Journey
 
-## Project Overview
+**Live app:** <https://hifz-guard.vercel.app/>
 
-**HifzGuard** is a web app. It solves the #1 pain point for Huffaz (people who memorize the Quran): confusing similar verses (mutashabihat) during memorization and revision.
+HifzGuard is a simple, calm web app built for one purpose: to help a hafiz catch, study, and master **mutashabihat** the verses of the Quran that look or sound almost identical to other verses, but differ in small, important ways.
 
-**Core problem:** When a hafiz memorizes the Quran, many verses share identical or near-identical openings, phrases, or structures across different surahs. For example, Surah Al-Baqarah 2:14 starts with words that appear identically in 3+ other locations. Traditionally, a hafiz needs a second person (sami) to catch mistakes, and printed mutashabihat books to study similarities. This app digitizes and supercharges both.
-
-**Hackathon requirement:** Must use at least ONE Quran Foundation Content API AND at least ONE User API. See `API_REFERENCE.md` for details.
+Every hafiz knows the feeling. You are reciting surely, then a familiar phrase pulls you into the wrong surah, or you pause, unable to remember which ayah continues which way. These confusable verses are the single biggest cause of slips during revision. HifzGuard is built to make those exact spots visible, studyable, and testable any time, on any device.
 
 ---
 
-## Tech Stack
+## Who this is for
 
-- **Framework:** Next.js 14+ (App Router)
-- **Language:** TypeScript
-- **Styling:** Tailwind CSS
-- **Quran API SDK:** `@quranjs/api` (npm package)
-- **Auth:** Quran Foundation OAuth2 (Authorization Code + PKCE for User APIs, Client Credentials for Content APIs)
-- **Mutashabihat Data:** Pre-bundled JSON from Waqar144/Quran_Mutashabihat_Data (GitHub)
-- **Deployment:** Vercel (for live demo link in submission)
+- **Students of hifz** who are currently memorizing and want to avoid confusion between similar ayat.
+- **Huffaz** who have completed hifz and are revising, and want a faster way than flipping through printed mutashabihat books.
+- **Teachers** who want to point students to exact pairs of similar verses with clear word-by-word differences.
+- **Anyone** doing daily Quran reading who wants to notice the patterns in the Qur'an's language.
 
----
-
-## Feature Specifications
-
-### Feature 1: Mutashabihat Explorer 
-
-**What it does:** User selects a Parah (1-30) or Surah. The app shows every verse in that range that has mutashabihat (similar verses elsewhere in the Quran). Tapping a verse opens a side-by-side comparison highlighting the exact words that differ.
-
-**User flow:**
-1. User lands on Explorer page
-2. Selects Parah 1 (or Surah Al-Baqarah)
-3. Sees a scrollable list of verses, each tagged with a badge: "3 similar" or "5 similar"
-4. Taps a verse → expands to show all similar verses side-by-side
-5. Word-level differences are highlighted (e.g., different word in amber, identical words in default color)
-6. Each similar verse shows its surah name and verse number for reference
-7. User can bookmark a difficult mutashabih pair (User API: Bookmarks)
-
-**Data flow:**
-- Load `mutashabihat_data.json` → filter entries by parah/surah range
-- For each entry, fetch verse text via Content API (`client.verses.findByKey("2:14", { words: true })`)
-- Fetch all matching verse texts
-- Run word-level diff to find differences
-- Display side-by-side with highlights
-
-**Content API usage:**
-- `verses.findByKey(key, { words: true, translations: [20] })` — get verse with word-by-word data
-- `chapters.findAll()` — for surah names in the UI
-
-**User API usage:**
-- `POST /bookmarks` — save difficult mutashabih pairs
-- `GET /bookmarks` — retrieve saved pairs
-- `POST /collections` — create a "My Weak Mutashabihat" collection
-
-### Feature 2: Parah Revision Mode 
-
-**What it does:** User selects a parah they're revising. They navigate verse-by-verse. When they reach a verse that has mutashabihat, the app shows a proactive alert: "⚠️ This verse starts identically to Al-Imran 3:119 and An-Nisa 4:61 — pay attention here."
-
-**Difficulty categorization:**
-- **Small mutashabih:** Only 1-2 words differ (e.g., same opening, different ending word)
-- **Medium mutashabih:** Middle section differs but opening and closing are identical
-- **Large mutashabih:** Entire opening phrase (3+ words) is shared across 3+ locations
-
-**User flow:**
-1. Select parah number
-2. Navigate verse by verse (prev/next buttons, or swipe)
-3. Normal verses show cleanly with Arabic text + translation
-4. Mutashabih verses show with an alert banner + quick-compare panel
-5. User can tap "Show all similar" to see full side-by-side (reuses Explorer component)
-6. Progress is tracked via Activity Days API
-7. Streak maintained via Streaks API
-
-**User API usage:**
-- `POST /activity-days` — log daily revision activity
-- `GET /streaks` — display current streak
-- `POST /goals` — set revision target (e.g., 1 parah per day)
-- `GET /goals/today` — check today's goal progress
-
-### Feature 3: Self-Test Mode 
-
-**What it does:** Shows the first few words of a verse that has mutashabihat. The user must identify which surah/location this specific version belongs to, or type/select how the verse continues. When they get it wrong, the app shows the verse they confused it with.
-
-**User flow:**
-1. Select parah or surah to test on
-2. App shows first 3-4 words of a mutashabih verse
-3. Multiple choice: "Where does this verse appear?" with options being the different locations
-4. Correct → green, move on. Wrong → shows side-by-side comparison of what they confused
-5. Wrong answers auto-bookmarked for later review
-6. Session results posted as activity
-
-**User API usage:**
-- `POST /bookmarks` — auto-save wrong answers
-- `POST /activity-days` — log test sessions
-- `GET /streaks` — maintain streak
+You do not need to be a developer. You do not need to install anything. Just open the link.
 
 ---
 
-## Mutashabihat Data Structure
+## What you can do inside the app
 
-See `MUTASHABIHAT_DATA.md` for full specification of the data format.
+The app has four simple sections at the top: **Mushaf**, **Explorer**, **Revision**, and **Self-Test**.
 
-**Key points:**
-- Source: https://github.com/Waqar144/Quran_Mutashabihat_Data
-- Format: JSON array of objects
-- Each object has: `src` (source ayah — absolute number or surah:ayah), `muts` (array of matching absolute ayah numbers), `ctx` (boolean — whether context from next ayah is needed)
-- Total: ~5400 entries covering the entire Quran
-- Bundle this file at `src/data/mutashabihat_data.json`
+### Mushaf — read the Quran the way you memorized it
 
-You will need a mapping utility to convert between absolute ayah numbers and surah:ayah format. The Quran has 6236 ayat total. Build a lookup table using the surah metadata (number of verses per surah).
+This is the traditional 604-page mushaf view. You can turn pages one by one, jump to any parah, and read the exact same line-by-line layout you are used to from the printed Quran.
 
----
+The difference: every word that is a mutashabih — a word that appears at the start of a verse with siblings elsewhere — is gently colored.
 
-## Arabic Text Rendering — CRITICAL
+- **Green** means this verse has 1 similar verse elsewhere.
+- **Amber** means it has 2 or 3.
+- **Red** means it has 4 or more.
 
-This is the most important UX aspect. Arabic text MUST render correctly:
+Tap any colored word and the app immediately shows you, side by side, the other verses that share this opening — with the matching words in normal color and the **different words highlighted in amber**. You can feel, at a glance, exactly where the two ayat split.
 
-1. **Direction:** All Arabic text containers must have `dir="rtl"` and `text-align: right`
-2. **Font:** Use a proper Quran font. Options:
-   - KFGQPC Uthmanic Script HAFS (recommended, used by Quran.com)
-   - Load via Google Fonts or self-host from Quran Foundation CDN
-   - The Content API returns text in `text_uthmani` field — this is the Uthmanic script with full tashkeel (diacritics)
-3. **Font size:** Arabic Quran text should be large and readable: minimum 24px, ideally 28-32px
-4. **Line height:** Arabic with tashkeel needs generous line-height: at least 2.0 or 2.2
-5. **Word-by-word rendering:** The API returns a `words` array. Each word object has `text_uthmani`, `translation`, and `position`. Use this for the diff highlighting feature.
-6. **Tashkeel visibility:** Always show full tashkeel (diacritical marks). Never strip them — they are essential for correct Quran reading.
+This alone turns the whole mushaf into a live mutashabihat index.
 
-**Diff highlighting approach:**
-- Compare two verses word-by-word using their `words` arrays
-- Words at the same position that match → default color
-- Words that differ → highlighted background (amber/yellow)
-- Extra words (one verse is longer) → highlighted in a different color (coral/red)
+### Explorer — browse every similar verse in a parah or surah
 
----
+Select a parah (1–30) or a surah, and you get a clean list of every verse in that range that has mutashabihat. Each card tells you:
 
-### User APIs (requires user login)
+- Which verse it is (e.g., **2:47**)
+- How many similar verses it has across the Quran
+- Whether the pattern is **Small** (just one or two words differ), **Medium**, or **Large** (a whole opening phrase is shared)
+- A **+ context** tag when the similarity carries into the next ayah, so you know to study two ayat together
 
-Use Authorization Code flow with PKCE:
+The app shows the source verse next to each similar verse with word-level highlighting. When the pair is tagged `+ context`, a **continuation row** appears underneath showing the next ayah for both sides — *also* with word-level highlighting — because that is where the real divergence usually hides. This is the exact moment where most huffaz slip, and it is now right in front of you.
 
-1. **Login button** redirects user to: `https://oauth.quran.com/oauth2/auth?client_id=...&response_type=code&redirect_uri=...&scope=openid+profile+bookmark.crud+collection.crud+goal.crud+streak.read+activityday.crud&code_challenge=...&code_challenge_method=S256`
-2. **Callback** receives authorization code at `/auth/callback`
-3. **Backend** exchanges code for tokens at `POST https://oauth.quran.com/oauth2/token` with client_secret (confidential client)
-4. **Access token** stored in httpOnly cookie or session, used for User API calls
-5. **Refresh** handled server-side when token expires
+You can **bookmark** any card you find tricky, so you can come back to it later.
 
-Required OAuth2 scopes:
-- `openid` — for OIDC
-- `profile` — user info
-- `bookmark.crud` — create/read/update/delete bookmarks
-- `collection.crud` — manage collections
-- `goal.crud` — reading goals
-- `streak.read` — read streaks
-- `activityday.crud` — log activity
+### Revision — go through a parah, with proactive warnings
 
-User API base URL: `https://api.quran.com/api/qdc/user/v1/` (check docs for exact URL)
-Headers: `x-auth-token: <access_token>`, `x-client-id: <client_id>`
+Pick a parah you are revising. Move through it verse by verse. When you reach a verse that has mutashabihat, HifzGuard shows an alert before you continue: *"This verse starts identically to 3:119 and 4:61. Pay attention here."*
+
+You can open the side-by-side comparison right there, without losing your place. Your daily revision is logged quietly in the background, and your streak keeps going as long as you keep coming back.
+
+### Self-Test — check yourself
+
+The app shows you the first few words of a mutashabih verse. You tell it which surah and ayah this version belongs to. If you get it right, you move on. If you get it wrong, the app shows the verse you confused it with — side by side, differences highlighted — and saves that mistake to your bookmarks for later study.
+
+It is the digital version of being tested by a sami, without needing to schedule one.
 
 ---
 
-## Styling Guidelines
+## How to use HifzGuard in your daily routine
 
-- Use Tailwind CSS with a clean, modern design
-- Color scheme: Deep teal/green primary (Islamic aesthetic), warm amber for highlights, clean white/gray backgrounds
-- Dark mode support (many users read Quran at night)
-- Mobile-first responsive design (most huffaz will use phones)
-- The app should feel reverent and clean — no flashy animations, no clutter
-- Use card-based layouts for verse comparisons
-- Badge system for mutashabih count (e.g., small green badge "2 similar", amber "5 similar", red "8+ similar")
+A practical rhythm that works for most students:
+
+1. **Before your daily revision** — open **Explorer**, select the parah you are revising, and skim the cards for 2–3 minutes. You will see in advance which ayat will try to trick you.
+2. **During revision** — keep **Revision** mode open on your phone. When an alert appears, pause for a moment, look at the comparison, then continue.
+3. **At the end of the week** — open **Self-Test** and run through the parahs you revised. Anything you miss gets bookmarked.
+4. **When stuck on a confusing pair** — go to **Mushaf**, find the page, tap the colored word, and study the siblings together.
+
+You do not need to do all four. Even using only the **Mushaf** view regularly will change how you read.
 
 ---
 
-## Important Links
+## A few things worth knowing
 
-- Quran Foundation API Docs: https://api-docs.quran.foundation
-- JS SDK: https://www.npmjs.com/package/@quranjs/api
-- OAuth2 Tutorial: https://api-docs.quran.foundation/docs/tutorials/oidc/getting-started-with-oauth2
-- User APIs Quickstart: https://api-docs.quran.foundation/docs/tutorials/oidc/user-apis-quickstart
-- Request Access (get client_id): https://api-docs.quran.foundation/request-access
-- Mutashabihat Dataset: https://github.com/Waqar144/Quran_Mutashabihat_Data
-- Font Rendering Tutorial: https://api-docs.quran.foundation/docs/tutorials/fonts/font-rendering
-- Hackathon Page: https://launch.provisioncapital.com/quran-hackathon
-- Hackathon Terms: https://launch.provisioncapital.com/quran-hackathon/terms
-- API Support: Hackathon@quran.com
+- **Every Arabic verse is shown in full Uthmani script with tashkeel.** Nothing is stripped. The script is rendered in the same font family used in the printed mushaf so your eye sees what it knows.
+- **Translations are included** for reading support, but this is not a translation app. The focus is always on the Arabic.
+- **Bookmarks are saved to your Quran.com account** when you sign in, so they travel with you between devices.
+- **Dark mode is supported** for late-night reading.
+- **Mobile-first.** The app is designed around a phone screen first — because that is where most revision happens.
+- **Free to use.** No subscriptions, no ads. 
+
+---
+
+## With sincerity
+
+This app was built with the intention of making the hifz journey a little easier for anyone working to carry the Qur'an in their heart. It is not meant to replace a teacher, a sami, or the traditional mutashabihat books that scholars have put together over centuries — it stands on their work. It is meant to be a quiet, always-available companion in the moments in between.
+
+May Allah accept it from us and from you, and may He make the Qur'an the spring of your heart.
+
+**Open the app:** <https://hifz-guard.vercel.app/>
