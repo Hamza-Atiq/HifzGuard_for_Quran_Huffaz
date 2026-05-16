@@ -81,16 +81,13 @@ export async function exchangeCode(code: string, state: string): Promise<void> {
     throw new Error('Invalid OAuth state — possible CSRF');
   }
 
-  // Send credentials BOTH ways: HTTP Basic Auth (preferred by OAuth 2.1 for
-  // confidential clients) AND in the body (broader compatibility). QF accepts
-  // either; using both means a wrong-secret 401 surfaces cleanly via the
-  // Basic header while still working for servers that only check the body.
+  // QF's prelive client requires client_secret_basic ONLY — sending
+  // client_id/client_secret in the body triggers client_secret_post detection
+  // and a 401. Keep credentials in the Authorization header exclusively.
   const body = new URLSearchParams({
     grant_type: 'authorization_code',
     code,
     redirect_uri: `${appUrl}/api/auth/callback`,
-    client_id: clientId,
-    client_secret: clientSecret,
     code_verifier: verifier,
   });
 
