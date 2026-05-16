@@ -4,11 +4,22 @@ import ParahSelector from '@/components/ParahSelector';
 import AyahDisplay from '@/components/AyahDisplay';
 import DiffHighlighter from '@/components/DiffHighlighter';
 import { PARAH_RANGES, surahAyahToAbsolute, absoluteToSurahAyah, makeKey } from '@/lib/constants';
+import { useActivityTracker } from '@/lib/use-activity-tracker';
 import type { Verse, MutashabihEntry, Difficulty } from '@/types';
 
 export default function RevisionPage() {
   const [parah, setParah] = useState(1);
   const [index, setIndex] = useState(0);
+  const [touched, setTouched] = useState<string[]>([]);
+
+  // Read ?parah=N from the URL on mount (e.g. when navigated from the Hifz
+  // plan cards). Done in an effect to avoid the SSR Suspense requirement
+  // around next/navigation's useSearchParams.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const p = Number(params.get('parah'));
+    if (Number.isInteger(p) && p >= 1 && p <= 30) setParah(p);
+  }, []);
 
   // Build the list of verse keys in the current parah
   const verseKeys = useMemo(() => buildParahKeys(parah), [parah]);
@@ -17,6 +28,15 @@ export default function RevisionPage() {
   useEffect(() => setIndex(0), [parah]);
 
   const currentKey = verseKeys[index];
+
+  // Track every verse the user actually lands on, then log to Activity Days
+  // once they've gone through enough of them.
+  useEffect(() => {
+    if (!currentKey) return;
+    setTouched((prev) => (prev.includes(currentKey) ? prev : [...prev, currentKey]));
+  }, [currentKey]);
+
+  useActivityTracker({ verseKeys: touched, activityType: 'revision' });
 
   const [verse, setVerse] = useState<Verse | null>(null);
   const [muta, setMuta] = useState<(MutashabihEntry & { difficulty: Difficulty }) | null>(null);

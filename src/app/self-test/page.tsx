@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import ParahSelector from '@/components/ParahSelector';
 import DiffHighlighter from '@/components/DiffHighlighter';
 import { SURAH_NAMES } from '@/lib/constants';
+import { useActivityTracker } from '@/lib/use-activity-tracker';
 import type { MutashabihEntry, Verse, Difficulty } from '@/types';
 
 interface Question {
@@ -21,6 +22,11 @@ export default function SelfTestPage() {
   const [score, setScore] = useState({ correct: 0, total: 0 });
   const [loading, setLoading] = useState(false);
   const [started, setStarted] = useState(false);
+  const [answered, setAnswered] = useState<string[]>([]);
+
+  // Log a Self-Test session as an Activity Day once the user has answered
+  // a meaningful number of questions. No-op if not signed in / scope missing.
+  useActivityTracker({ verseKeys: answered, activityType: 'self_test', minVerses: 3 });
 
   useEffect(() => {
     fetch(`/api/mutashabihat?parah=${parah}`)
@@ -55,6 +61,7 @@ export default function SelfTestPage() {
       correct: s.correct + (key === question.correctKey ? 1 : 0),
       total: s.total + 1,
     }));
+    setAnswered((a) => (a.includes(question.correctKey) ? a : [...a, question.correctKey]));
     if (key !== question.correctKey) {
       // auto-bookmark wrong answers (silently fail if not signed in)
       fetch('/api/user/bookmarks', {

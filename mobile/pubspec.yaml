@@ -1,0 +1,39 @@
+name: hifzguard
+description: HifzGuard — Mutashabihat companion for Huffaz. Mobile app.
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+  flutter: '>=3.22.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+
+  # Networking + JSON
+  http: ^1.2.2
+  shared_preferences: ^2.3.2
+
+  # Audio playback (verse recitations from everyayah CDN)
+  audioplayers: ^6.1.0
+
+  # Microphone capture for recitation mode
+  record: ^5.1.2
+  permission_handler: ^11.3.1
+  path_provider: ^2.1.4
+
+  # Routing
+  go_router: ^14.6.0
+
+  # Misc UI
+  flutter_svg: ^2.0.10+1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

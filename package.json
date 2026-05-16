@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@google/genai": "^2.3.0",
     "@quranjs/api": "^2.2.0",
     "next": "^16.2.3",
     "react": "^18.3.1",

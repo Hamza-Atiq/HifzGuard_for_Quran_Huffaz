@@ -1,47 +1,44 @@
 import { NextResponse } from 'next/server';
 import { getAccessToken } from '@/lib/auth';
-import { bookmarks } from '@/lib/qf-user-client';
+import { notes } from '@/lib/qf-user-client';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: Request) {
   if (!(await getAccessToken())) {
-    return NextResponse.json({ authenticated: false, bookmarks: [] });
+    return NextResponse.json({ authenticated: false, notes: [] });
   }
-  const result = await bookmarks.list();
+  const url = new URL(req.url);
+  const result = await notes.list(url.searchParams.get('verseKey') || undefined);
   if (!result.ok) {
-    if (result.reason === 'scope_missing') {
-      return NextResponse.json({ authenticated: true, bookmarks: [], scopeMissing: true });
-    }
-    return NextResponse.json(
-      { authenticated: true, error: result.reason, message: result.message },
-      { status: result.status || 500 },
-    );
+    return NextResponse.json({ authenticated: true, notes: [], reason: result.reason });
   }
-  const list = result.data.bookmarks ?? result.data.data ?? [];
-  return NextResponse.json({ authenticated: true, bookmarks: list });
+  return NextResponse.json({
+    authenticated: true,
+    notes: result.data.notes ?? result.data.data ?? [],
+  });
 }
 
 export async function POST(req: Request) {
   if (!(await getAccessToken())) {
     return NextResponse.json({ error: 'not authenticated' }, { status: 401 });
   }
-  const { verseKey } = await req.json();
-  if (!verseKey) {
-    return NextResponse.json({ error: 'verseKey required' }, { status: 400 });
+  const { body, verseKey } = await req.json();
+  if (!body || !verseKey) {
+    return NextResponse.json({ error: 'body + verseKey required' }, { status: 400 });
   }
-  const result = await bookmarks.create(verseKey);
+  const result = await notes.create(body, verseKey);
   if (!result.ok) {
     if (result.reason === 'scope_missing') {
-      return NextResponse.json({ error: 'bookmark.crud scope not yet granted' }, { status: 403 });
+      return NextResponse.json({ skipped: true, reason: 'scope_missing' });
     }
     return NextResponse.json(
       { error: result.reason, message: result.message },
       { status: result.status || 500 },
     );
   }
-  return NextResponse.json({ ok: true, bookmark: result.data });
+  return NextResponse.json({ ok: true, note: result.data });
 }
 
 export async function DELETE(req: Request) {
@@ -53,7 +50,7 @@ export async function DELETE(req: Request) {
   if (!id) {
     return NextResponse.json({ error: 'id required' }, { status: 400 });
   }
-  const result = await bookmarks.remove(id);
+  const result = await notes.remove(id);
   if (!result.ok) {
     return NextResponse.json(
       { error: result.reason, message: result.message },

@@ -3,6 +3,9 @@ import { useEffect, useMemo, useState } from 'react';
 import type { MutashabihEntry, Verse, Difficulty } from '@/types';
 import AyahDisplay from './AyahDisplay';
 import DiffHighlighter from './DiffHighlighter';
+import AiTipPanel from './AiTipPanel';
+import CommunityTipsPanel from './CommunityTipsPanel';
+import AudioCompareBar from './AudioCompareBar';
 import { nextVerseKey } from '@/lib/constants';
 
 interface Props {
@@ -53,20 +56,35 @@ export default function MutashabihatCard({ entry, defaultExpanded = false }: Pro
 
   const difficulty = entry.difficulty ?? (entry.similar.length >= 4 ? 'large' : entry.similar.length >= 2 ? 'medium' : 'small');
 
+  const [bookmarkErr, setBookmarkErr] = useState<string | null>(null);
+
   async function bookmark() {
     setBookmarking(true);
+    setBookmarkErr(null);
     try {
       const res = await fetch('/api/user/bookmarks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ verseKey: entry.src.key }),
       });
-      if (res.ok) setBookmarked(true);
-      else if (res.status === 401) {
+      if (res.ok) {
+        setBookmarked(true);
+        return;
+      }
+      if (res.status === 401) {
         if (confirm('Sign in with your Quran.com account to save bookmarks?')) {
           window.location.href = '/api/auth/login';
         }
+        return;
       }
+      if (res.status === 403) {
+        setBookmarkErr("Bookmarks scope not yet enabled by Quran Foundation — it's pending.");
+        return;
+      }
+      const j = await res.json().catch(() => ({}));
+      setBookmarkErr(j.message || j.error || `Save failed (${res.status})`);
+    } catch (e) {
+      setBookmarkErr((e as Error).message);
     } finally {
       setBookmarking(false);
     }
@@ -113,6 +131,21 @@ export default function MutashabihatCard({ entry, defaultExpanded = false }: Pro
         Similar to: {entry.similar.map((s) => s.key).join('  ·  ')}
       </p>
 
+      {bookmarkErr && (
+        <p className="text-xs text-amber-700 dark:text-amber-300 mb-3 -mt-1">
+          {bookmarkErr}
+        </p>
+      )}
+
+      <div className="flex flex-wrap items-start gap-3">
+        <AiTipPanel
+          sourceKey={entry.src.key}
+          similarKeys={entry.similar.map((s) => s.key)}
+          needsContext={entry.needsContext}
+        />
+        <CommunityTipsPanel sourceKey={entry.src.key} />
+      </div>
+
       {expanded && entry.needsContext && (
         <p className="text-xs text-[color:var(--ink-muted)] -mt-1 mb-3 italic">
           Context: this mutashabih extends into the next ayah — continuation shown beneath each pair.
@@ -120,6 +153,9 @@ export default function MutashabihatCard({ entry, defaultExpanded = false }: Pro
       )}
       {expanded && (
         <div className="mt-4">
+          <AudioCompareBar
+            verseKeys={[entry.src.key, ...entry.similar.map((s) => s.key)]}
+          />
           {loading && (
             <div className="text-center py-12 text-[color:var(--ink-muted)] text-sm">
               Loading verses…

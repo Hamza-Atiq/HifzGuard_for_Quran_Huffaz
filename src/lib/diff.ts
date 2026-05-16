@@ -5,7 +5,7 @@ import type { Word, DiffWord } from '@/types';
  * The user still SEES the verses with tashkeel — we only normalize for matching.
  */
 const TASHKEEL_RE = /[\u064B-\u065F\u0670\u06D6-\u06ED\u0640]/g;
-function normalize(word: string): string {
+export function normalize(word: string): string {
   return word
     .replace(TASHKEEL_RE, '')
     .replace(/[\u0622\u0623\u0625]/g, '\u0627') // alif variants → bare alif
