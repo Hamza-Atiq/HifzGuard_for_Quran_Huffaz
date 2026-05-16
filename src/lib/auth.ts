@@ -81,6 +81,10 @@ export async function exchangeCode(code: string, state: string): Promise<void> {
     throw new Error('Invalid OAuth state — possible CSRF');
   }
 
+  // Send credentials BOTH ways: HTTP Basic Auth (preferred by OAuth 2.1 for
+  // confidential clients) AND in the body (broader compatibility). QF accepts
+  // either; using both means a wrong-secret 401 surfaces cleanly via the
+  // Basic header while still working for servers that only check the body.
   const body = new URLSearchParams({
     grant_type: 'authorization_code',
     code,
@@ -90,13 +94,22 @@ export async function exchangeCode(code: string, state: string): Promise<void> {
     code_verifier: verifier,
   });
 
+  const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+
   const res = await fetch(`${USER_OAUTH_BASE}/token`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Authorization: `Basic ${basicAuth}`,
+      Accept: 'application/json',
+    },
     body,
   });
   if (!res.ok) {
-    throw new Error(`Token exchange failed: ${res.status}`);
+    const respText = await res.text().catch(() => '');
+    // Surface QF's actual error code (e.g. invalid_client, invalid_grant)
+    // back to the user via the AuthBanner so we can debug from the URL.
+    throw new Error(`Token exchange failed: ${res.status} — ${respText.slice(0, 300)}`);
   }
   const json = await res.json();
   c.set(TOKEN_COOKIE, json.access_token, {
