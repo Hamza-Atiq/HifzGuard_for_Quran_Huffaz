@@ -1,10 +1,12 @@
 import Link from 'next/link';
 import { getStats } from '@/lib/mutashabihat';
+import { AuthBanner } from '@/components/AuthBanner';
 
 export default function HomePage() {
   const stats = getStats();
   return (
     <div className="max-w-6xl mx-auto px-5 py-10 sm:py-16">
+      <AuthBanner />
       <section className="text-center max-w-3xl mx-auto fade-up">
         <span className="badge badge-small mb-5">For Huffaz · By Huffaz</span>
         <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-[color:var(--ink)] leading-tight">
