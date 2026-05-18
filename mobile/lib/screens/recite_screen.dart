@@ -20,7 +20,6 @@ class _ReciteScreenState extends State<ReciteScreen> {
   late int _parah = widget.initialParah;
   String _verseKey = '1:1';
   Verse? _verse;
-  MutashabihEntry? _muta;
   Map<String, String> _similarTexts = {};
   int _matched = 0;
   int? _divergenceIdx;
@@ -59,7 +58,6 @@ class _ReciteScreenState extends State<ReciteScreen> {
   Future<void> _loadVerse() async {
     setState(() {
       _verse = null;
-      _muta = null;
       _similarTexts = {};
       _matched = 0;
       _divergenceIdx = null;
@@ -77,7 +75,6 @@ class _ReciteScreenState extends State<ReciteScreen> {
       }
       setState(() {
         _verse = vs.isNotEmpty ? vs.first : null;
-        _muta = muta;
         _similarTexts = similar;
       });
     } catch (e) {

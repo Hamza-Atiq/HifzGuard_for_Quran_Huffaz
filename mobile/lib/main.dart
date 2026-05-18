@@ -57,7 +57,7 @@ class HifzGuardApp extends StatelessWidget {
           centerTitle: false,
           elevation: 0,
         ),
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           elevation: 0,
           color: Colors.white,
           shape: RoundedRectangleBorder(

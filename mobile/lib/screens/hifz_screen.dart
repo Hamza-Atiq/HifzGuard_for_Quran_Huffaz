@@ -90,7 +90,7 @@ class _HifzScreenState extends State<HifzScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
+          color: color.withOpacity(0.12),
           borderRadius: BorderRadius.circular(14),
         ),
         child: Column(
@@ -100,7 +100,7 @@ class _HifzScreenState extends State<HifzScreen> {
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
-                  color: color.withValues(alpha: 0.85),
+                  color: color,
                 )),
             const SizedBox(height: 2),
             Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),

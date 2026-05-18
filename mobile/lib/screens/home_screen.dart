@@ -89,7 +89,7 @@ class _FeatureCard extends StatelessWidget {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: tile.isPrimary ? colors.primary : colors.primary.withValues(alpha: 0.1),
+                  color: tile.isPrimary ? colors.primary : colors.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(

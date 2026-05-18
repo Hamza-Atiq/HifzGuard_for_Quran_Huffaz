@@ -15,3 +15,10 @@ CLAUDE.md
 .claude/
 API_reference.md
 Mutashabihat_data.md
+
+# Demo recordings / large binaries — never push to git
+*.mp4
+*.mov
+*.mkv
+*.zip
+memory/

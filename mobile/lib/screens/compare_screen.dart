@@ -190,7 +190,7 @@ class _CompareScreenState extends State<CompareScreen> {
                           ? Colors.white
                           : Theme.of(context).colorScheme.onSurface,
                       elevation: 0,
-                      side: BorderSide(color: Colors.black.withValues(alpha: 0.1)),
+                      side: BorderSide(color: Colors.black.withOpacity(0.1)),
                     ),
                   ),
                 ElevatedButton.icon(

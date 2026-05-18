@@ -158,12 +158,12 @@ class _EntryCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: diffColor.withValues(alpha: 0.15),
+                      color: diffColor.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
                       '${entry.similar.length} similar · ${diff[0].toUpperCase()}${diff.substring(1)}',
-                      style: TextStyle(fontSize: 11, color: diffColor.withValues(alpha: 1.0)),
+                      style: TextStyle(fontSize: 11, color: diffColor),
                     ),
                   ),
                   const Spacer(),
