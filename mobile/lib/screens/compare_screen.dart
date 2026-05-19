@@ -23,13 +23,21 @@ class _CompareScreenState extends State<CompareScreen> {
   String? _error;
   String _reciterId = 'mishary';
   String? _playingKey;
+  bool _sequenceMode = false;
+  bool _userStopped = false;
   final _player = AudioPlayer();
 
   @override
   void initState() {
     super.initState();
     _player.onPlayerStateChanged.listen((s) {
-      if (s == PlayerState.completed || s == PlayerState.stopped) {
+      // Reset _playingKey ONLY for user-driven stops or completion of a
+      // single-verse play. While running a sequence, leave _playingKey
+      // alone — _playSequence manages it.
+      if (s == PlayerState.stopped && _userStopped) {
+        if (mounted) setState(() => _playingKey = null);
+        _userStopped = false;
+      } else if (s == PlayerState.completed && !_sequenceMode) {
         if (mounted) setState(() => _playingKey = null);
       }
     });
@@ -80,19 +88,28 @@ class _CompareScreenState extends State<CompareScreen> {
   }
 
   Future<void> _stop() async {
+    _userStopped = true;
+    _sequenceMode = false;
     await _player.stop();
-    setState(() => _playingKey = null);
+    if (mounted) setState(() => _playingKey = null);
   }
 
   Future<void> _playSequence(List<String> keys) async {
-    for (final k in keys) {
-      if (_playingKey == null && k != keys.first) break;
-      await _play(k);
-      // Wait for playback to finish
-      await _player.onPlayerComplete.first;
-      await Future.delayed(const Duration(milliseconds: 500));
+    _sequenceMode = true;
+    try {
+      for (final k in keys) {
+        if (!_sequenceMode) break; // user pressed stop
+        setState(() => _playingKey = k);
+        await _player.play(UrlSource(audioUrlFor(k, _reciterId)));
+        // Wait for THIS chunk's completion event
+        await _player.onPlayerComplete.first;
+        if (!_sequenceMode) break;
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+    } finally {
+      _sequenceMode = false;
+      if (mounted) setState(() => _playingKey = null);
     }
-    setState(() => _playingKey = null);
   }
 
   @override

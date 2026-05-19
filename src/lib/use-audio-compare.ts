@@ -99,26 +99,41 @@ export function useAudioCompare(reciterId: string): AudioCompareState {
     async (key: string): Promise<void> => {
       const a = audioRef.current;
       if (!a) return;
+      // Stop any prior playback before swapping src — without this, Chrome
+      // can throw AbortError mid-sequence and kill the rest of the queue.
+      try {
+        a.pause();
+      } catch {
+        /* fine */
+      }
       a.src = audioUrlFor(key, reciterId);
+      a.load();
+      a.currentTime = 0;
       a.playbackRate = rate;
       setCurrentKey(key);
       setState('playing');
       await new Promise<void>((resolve, reject) => {
+        let settled = false;
         const cleanup = () => {
+          settled = true;
           a.removeEventListener('ended', onEnd);
           a.removeEventListener('error', onErr);
           a.removeEventListener('pause', onPause);
         };
         const onEnd = () => {
+          if (settled) return;
           cleanup();
           resolve();
         };
         const onErr = () => {
+          if (settled) return;
           cleanup();
           reject(new Error('audio load/play failed'));
         };
         const onPause = () => {
-          // Only treat as cancel when the user explicitly stopped (cancelRef)
+          // Only treat as cancel when the user explicitly stopped (cancelRef).
+          // The browser may also fire `pause` right before `ended` — ignore that.
+          if (settled) return;
           if (cancelRef.current) {
             cleanup();
             resolve();
@@ -128,6 +143,7 @@ export function useAudioCompare(reciterId: string): AudioCompareState {
         a.addEventListener('error', onErr);
         a.addEventListener('pause', onPause);
         a.play().catch((err) => {
+          if (settled) return;
           cleanup();
           reject(err);
         });
@@ -158,8 +174,11 @@ export function useAudioCompare(reciterId: string): AudioCompareState {
         if (cancelRef.current) break;
         try {
           await playSingle(key);
-        } catch {
-          break;
+        } catch (err) {
+          // A transient AbortError / load failure on one verse shouldn't
+          // kill the whole sequence — log and continue to the next.
+          console.warn(`[audio] skip ${key}:`, err);
+          continue;
         }
         if (cancelRef.current) break;
         if (gapMs > 0) {

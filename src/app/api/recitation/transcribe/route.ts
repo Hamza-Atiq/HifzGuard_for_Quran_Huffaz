@@ -4,7 +4,12 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const HF_MODEL = process.env.HF_RECITATION_MODEL || 'tarteel-ai/whisper-base-ar-quran';
-const HF_API_URL = `https://api-inference.huggingface.co/models/${HF_MODEL}`;
+// HF migrated from `api-inference.huggingface.co/models/...` to the router-based
+// Inference Providers endpoint. The legacy path now returns 404 "Cannot POST"
+// because models are served behind /hf-inference/models/* via the router.
+const HF_API_URL =
+  process.env.HF_INFERENCE_URL ||
+  `https://router.huggingface.co/hf-inference/models/${HF_MODEL}`;
 
 /**
  * Transcribe a short Arabic recitation chunk via Hugging Face Inference API.

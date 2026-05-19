@@ -159,13 +159,29 @@ export interface QfReadingSession {
 
 // -------------------- Bookmarks --------------------
 
+/** "2:14" → { surah: 2, ayah: 14 } */
+function parseKey(verseKey: string): { surah: number; ayah: number } {
+  const [s, a] = verseKey.split(':').map((n) => Number(n));
+  return { surah: s, ayah: a };
+}
+
 export const bookmarks = {
   list: () => call<QfBookmarksResponse>('/bookmarks?mushaf_id=1'),
-  create: (verseKey: string) =>
-    call<QfBookmark>('/bookmarks', {
+  create: (verseKey: string) => {
+    const { surah, ayah } = parseKey(verseKey);
+    // QF's actual schema (per response example): { type: 'ayah', key: <surah:int>,
+    // verseNumber: <ayah:int> }. The original `{ key: '2:14' }` shape was a string
+    // and triggered ValidationError 'value does not match any of the allowed types'.
+    return call<QfBookmark>('/bookmarks', {
       method: 'POST',
-      body: JSON.stringify({ mushaf_id: 1, key: verseKey, type: 'ayah' }),
-    }),
+      body: JSON.stringify({
+        mushafId: 1,
+        type: 'ayah',
+        key: surah,
+        verseNumber: ayah,
+      }),
+    });
+  },
   remove: (id: string | number) =>
     call<{ success: boolean }>(`/bookmarks/${id}`, { method: 'DELETE' }),
 };
@@ -193,11 +209,19 @@ export const collections = {
 export const notes = {
   list: (verseKey?: string) =>
     call<QfNotesResponse>(verseKey ? `/notes?ranges=${encodeURIComponent(verseKey)}` : '/notes'),
-  create: (body: string, verseKey: string) =>
-    call<QfNote>('/notes', {
+  create: (body: string, verseKey: string) => {
+    const { surah, ayah } = parseKey(verseKey);
+    // Mirrors the bookmark schema — ayah-typed entity, integer key + verseNumber.
+    return call<QfNote>('/notes', {
       method: 'POST',
-      body: JSON.stringify({ body, ranges: [verseKey] }),
-    }),
+      body: JSON.stringify({
+        body,
+        type: 'ayah',
+        key: surah,
+        verseNumber: ayah,
+      }),
+    });
+  },
   update: (id: string | number, body: string) =>
     call<QfNote>(`/notes/${id}`, {
       method: 'PUT',
@@ -227,6 +251,32 @@ export const goals = {
 
 // -------------------- Activity Days --------------------
 
+/**
+ * Collapse adjacent verse keys ("2:14","2:15","2:16","3:1") into ranges
+ * grouped by surah: [{chapterId:2, from:14, to:16}, {chapterId:3, from:1, to:1}].
+ * QF activity-days expects this object-array format, NOT a string list.
+ */
+function packRanges(
+  verseKeys: string[],
+): Array<{ chapterId: number; from: number; to: number }> {
+  const parsed = verseKeys
+    .map(parseKey)
+    .filter((p) => Number.isFinite(p.surah) && Number.isFinite(p.ayah))
+    .sort((a, b) => (a.surah - b.surah) || (a.ayah - b.ayah));
+  const out: Array<{ chapterId: number; from: number; to: number }> = [];
+  for (const { surah, ayah } of parsed) {
+    const last = out[out.length - 1];
+    if (last && last.chapterId === surah && ayah === last.to + 1) {
+      last.to = ayah;
+    } else if (last && last.chapterId === surah && ayah >= last.from && ayah <= last.to) {
+      /* duplicate */
+    } else {
+      out.push({ chapterId: surah, from: ayah, to: ayah });
+    }
+  }
+  return out;
+}
+
 export const activityDays = {
   list: (from?: string, to?: string) => {
     const q = new URLSearchParams();
@@ -240,8 +290,8 @@ export const activityDays = {
       method: 'POST',
       body: JSON.stringify({
         date,
-        activity_type: activityType,
-        ranges,
+        activityType,
+        ranges: packRanges(ranges),
       }),
     }),
 };
@@ -275,10 +325,25 @@ export interface QfComment {
 }
 
 export const posts = {
+  /**
+   * QF's posts/feed uses bracket-notation filters, e.g.
+   *   filter[references][0][chapterId]=2
+   *   filter[references][0][from]=14
+   *   filter[references][0][to]=14
+   * Sending `references=2:14` as a flat param returns the unfiltered global feed.
+   */
   feed: (filter: { references?: string[]; tags?: string[]; page?: number } = {}) => {
     const q = new URLSearchParams();
-    if (filter.references?.length) q.set('references', filter.references.join(','));
-    if (filter.tags?.length) q.set('tags', filter.tags.join(','));
+    (filter.references ?? []).forEach((key, i) => {
+      const { surah, ayah } = parseKey(key);
+      if (!Number.isFinite(surah) || !Number.isFinite(ayah)) return;
+      q.append(`filter[references][${i}][chapterId]`, String(surah));
+      q.append(`filter[references][${i}][from]`, String(ayah));
+      q.append(`filter[references][${i}][to]`, String(ayah));
+    });
+    (filter.tags ?? []).forEach((tag, i) => {
+      q.append(`filter[tags][${i}]`, tag);
+    });
     if (filter.page) q.set('page', String(filter.page));
     const qs = q.toString();
     return callReflect<QfPostsFeedResponse>(`/posts/feed${qs ? '?' + qs : ''}`);
@@ -289,9 +354,12 @@ export const posts = {
       method: 'POST',
       body: JSON.stringify({
         body,
-        references,
+        references: references.map((key) => {
+          const { surah, ayah } = parseKey(key);
+          return { chapterId: surah, from: ayah, to: ayah };
+        }),
         tags,
-        is_public: true,
+        isPublic: true,
       }),
     }),
   remove: (id: string | number) =>
