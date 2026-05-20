@@ -1,7 +1,13 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import ParahSelector from '@/components/ParahSelector';
-import { PARAH_RANGES, surahAyahToAbsolute, absoluteToSurahAyah, makeKey, SURAH_NAMES } from '@/lib/constants';
+import {
+  PARAH_RANGES,
+  surahAyahToAbsolute,
+  absoluteToSurahAyah,
+  makeKey,
+} from '@/lib/constants';
+import { useWebSpeech } from '@/lib/use-web-speech';
 import { useRecitation, playMistakeBeep } from '@/lib/use-recitation';
 import { findDivergence, detectDrift } from '@/lib/recitation-matcher';
 import type { Verse, MutashabihEntry } from '@/types';
@@ -23,6 +29,7 @@ export default function RecitePage() {
   const [drift, setDrift] = useState<DriftAlert | null>(null);
   const [completedVerses, setCompletedVerses] = useState(0);
   const lastBeepedAt = useRef(0);
+  const completedRef = useRef(false);
 
   const verseKeys = useMemo(() => buildParahKeys(parah), [parah]);
   useEffect(() => {
@@ -31,13 +38,14 @@ export default function RecitePage() {
   }, [parah]);
   const currentKey = verseKeys[index];
 
-  // Fetch verse + mutashabihat (for drift detection)
+  // Fetch verse + mutashabihat
   useEffect(() => {
     if (!currentKey) return;
     let cancelled = false;
     setMatchedWords(0);
     setDivergenceIdx(null);
     setDrift(null);
+    completedRef.current = false;
 
     Promise.all([
       fetch(`/api/quran/verses?keys=${currentKey}`).then((r) => r.json()),
@@ -66,69 +74,114 @@ export default function RecitePage() {
     };
   }, [currentKey]);
 
-  // Hook into the mic + transcribe loop
-  const recitation = useRecitation({
-    chunkMs: 4000,
-    onChunk: (_chunk, full) => {
-      if (!verse) return;
-      const result = findDivergence(full, verse.textUthmani);
-      setMatchedWords(result.matchedCount);
-      setDivergenceIdx(result.divergenceIndex);
+  // Shared handler — called by both Web Speech (realtime) and Whisper (fallback)
+  function handleTranscript(full: string) {
+    if (!verse || completedRef.current) return;
+    const result = findDivergence(full, verse.textUthmani);
+    setMatchedWords(result.matchedCount);
+    setDivergenceIdx(result.divergenceIndex);
 
-      if (result.completed) {
-        // user reached the end of the verse correctly — advance
-        setCompletedVerses((c) => c + 1);
-        // Move on after a brief delay so they SEE the green flash
-        setTimeout(() => {
-          setIndex((i) => Math.min(verseKeys.length - 1, i + 1));
-        }, 700);
-        return;
+    if (result.completed) {
+      completedRef.current = true;
+      setCompletedVerses((c) => c + 1);
+      webSpeech.clearTranscript();
+      setTimeout(() => {
+        completedRef.current = false;
+        setIndex((i) => Math.min(verseKeys.length - 1, i + 1));
+      }, 700);
+      return;
+    }
+
+    if (result.divergenceIndex !== null) {
+      const now = Date.now();
+      if (now - lastBeepedAt.current > 1500) {
+        playMistakeBeep();
+        lastBeepedAt.current = now;
       }
-
-      if (result.divergenceIndex !== null) {
-        // Beep, but rate-limit so we don't spam
-        const now = Date.now();
-        if (now - lastBeepedAt.current > 1500) {
-          playMistakeBeep();
-          lastBeepedAt.current = now;
+      if (similarTexts.length > 0) {
+        const driftRes = detectDrift(full, currentKey, verse.textUthmani, similarTexts);
+        if (driftRes) {
+          setDrift({
+            driftKey: driftRes.driftKey,
+            driftScore: driftRes.driftScore,
+            expectedScore: driftRes.expectedScore,
+          });
         }
-
-        // If the user has a mutashabih here, check if they drifted into one
-        if (similarTexts.length > 0) {
-          const driftRes = detectDrift(
-            full,
-            currentKey,
-            verse.textUthmani,
-            similarTexts,
-          );
-          if (driftRes) {
-            setDrift({
-              driftKey: driftRes.driftKey,
-              driftScore: driftRes.driftScore,
-              expectedScore: driftRes.expectedScore,
-            });
-          }
-        }
-      } else {
-        setDrift(null);
       }
-    },
+    } else {
+      setDrift(null);
+    }
+  }
+
+  // PRIMARY: Web Speech API — real-time, ~200ms latency
+  const webSpeech = useWebSpeech({
+    lang: 'ar-SA',
+    onUpdate: handleTranscript,
   });
 
-  // Auto-stop mic when navigating away from a verse mid-recitation
-  useEffect(() => () => recitation.stop(), [recitation.stop]);
+  // FALLBACK: Groq/HF Whisper — for browsers without Web Speech support
+  const whisper = useRecitation({
+    chunkMs: 4000,
+    expectedVerse: verse?.textUthmani,
+    onChunk: (_chunk, full) => handleTranscript(full),
+  });
+
+  const usingWebSpeech = webSpeech.supported;
+  const isListening = usingWebSpeech
+    ? webSpeech.status === 'listening'
+    : whisper.status === 'listening' || whisper.status === 'transcribing';
+
+  function startReciting() {
+    setMatchedWords(0);
+    setDivergenceIdx(null);
+    setDrift(null);
+    completedRef.current = false;
+    if (usingWebSpeech) {
+      webSpeech.start();
+    } else {
+      whisper.start();
+    }
+  }
+
+  function stopReciting() {
+    if (usingWebSpeech) webSpeech.stop();
+    else whisper.stop();
+  }
+
+  // Stop when navigating away
+  useEffect(() => {
+    return () => {
+      webSpeech.stop();
+      whisper.stop();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Reset transcript when verse changes
+  useEffect(() => {
+    webSpeech.clearTranscript();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentKey]);
+
+  const displayedTranscript = usingWebSpeech ? webSpeech.transcript : whisper.transcript;
+  const displayedError = usingWebSpeech ? webSpeech.error : whisper.error;
 
   return (
     <div className="max-w-4xl mx-auto px-5 py-8 space-y-6">
       <header>
         <h1 className="text-3xl font-bold tracking-tight">Recitation Mode</h1>
         <p className="mt-2 text-[color:var(--ink-muted)]">
-          Recite aloud — we'll listen, follow along, and beep if you drift. Powered by
-          Tarteel's open Whisper model.
+          Recite aloud — we&apos;ll follow along word-by-word and beep if you drift into a similar verse.
         </p>
-        <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-          ⚡ Best in Chrome on desktop or Android. Requires microphone permission.
-        </p>
+        {usingWebSpeech ? (
+          <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">
+            ✓ Real-time mode — browser speech recognition active (Arabic)
+          </p>
+        ) : (
+          <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+            ⚡ Chunked mode — Chrome recommended for real-time word tracking.
+          </p>
+        )}
       </header>
 
       <div className="card p-5">
@@ -144,29 +197,36 @@ export default function RecitePage() {
               Verse {index + 1} of {verseKeys.length} · {completedVerses} completed this session
             </div>
             <div className="text-lg font-bold text-[color:var(--teal)]">
-              {currentKey} {verse?.surahName && <span className="text-sm text-[color:var(--ink-muted)] font-medium">· {verse.surahName}</span>}
+              {currentKey}{' '}
+              {verse?.surahName && (
+                <span className="text-sm text-[color:var(--ink-muted)] font-medium">
+                  · {verse.surahName}
+                </span>
+              )}
             </div>
           </div>
-          <MicButton state={recitation.status} onStart={recitation.start} onStop={recitation.stop} />
+          <MicButton
+            isListening={isListening}
+            onStart={startReciting}
+            onStop={stopReciting}
+          />
         </div>
 
-        {recitation.error && (
-          <p className="text-xs text-red-600 dark:text-red-300 mb-3">
-            ⚠ {recitation.error}
-          </p>
+        {displayedError && (
+          <p className="text-xs text-red-600 dark:text-red-300 mb-3">⚠ {displayedError}</p>
         )}
 
-        {/* Drift alert — the mutashabihat killer feature */}
+        {/* Drift alert */}
         {drift && (
           <div className="mb-4 rounded-xl border-2 border-red-400 bg-red-50 dark:bg-red-950/30 p-4">
             <p className="text-sm font-bold text-red-700 dark:text-red-200">
-              ⚠ You're drifting into {drift.driftKey}
+              ⚠ You&apos;re drifting into {drift.driftKey}
             </p>
             <p className="text-xs text-red-700/80 dark:text-red-200/80 mt-1">
-              The verse you started ({currentKey}) and {drift.driftKey} share opening words. Your
-              recitation matches {drift.driftKey} {Math.round(drift.driftScore * 100)}% vs only{' '}
-              {Math.round(drift.expectedScore * 100)}% for the expected verse. Go back to{' '}
-              {currentKey} and listen for where they diverge.
+              Your recitation matches {drift.driftKey}{' '}
+              {Math.round(drift.driftScore * 100)}% vs only{' '}
+              {Math.round(drift.expectedScore * 100)}% for {currentKey}. Go back and listen
+              carefully for where they diverge.
             </p>
           </div>
         )}
@@ -177,20 +237,20 @@ export default function RecitePage() {
             verse={verse}
             matchedCount={matchedWords}
             divergenceIdx={divergenceIdx}
-            listening={recitation.status === 'listening' || recitation.status === 'transcribing'}
+            listening={isListening}
           />
         ) : (
           <div className="text-center py-12 text-[color:var(--ink-muted)]">Loading verse…</div>
         )}
 
-        {/* Live transcript (small, for debugging / transparency) */}
-        {recitation.transcript && (
+        {/* Live transcript */}
+        {displayedTranscript && (
           <div className="mt-5 pt-4 border-t border-[color:var(--line)]">
             <p className="text-[10px] uppercase tracking-wider text-[color:var(--ink-muted)] mb-1.5">
               What we heard
             </p>
             <p className="arabic-sm text-[color:var(--ink-muted)]" dir="rtl">
-              {recitation.transcript}
+              {displayedTranscript}
             </p>
           </div>
         )}
@@ -220,8 +280,10 @@ export default function RecitePage() {
             ⚠ Mutashabih verse
           </p>
           <p className="text-xs text-[color:var(--ink-muted)] leading-5">
-            This verse has {muta.similar.length} similar {muta.similar.length === 1 ? 'counterpart' : 'counterparts'} elsewhere
-            ({muta.similar.map((s) => s.key).join(', ')}). If you drift into one of them while reciting, we'll catch it above.
+            This verse has {muta.similar.length} similar{' '}
+            {muta.similar.length === 1 ? 'counterpart' : 'counterparts'} elsewhere (
+            {muta.similar.map((s) => s.key).join(', ')}). If you recite one when you mean the
+            other, we&apos;ll catch it above.
           </p>
         </div>
       )}
@@ -230,35 +292,25 @@ export default function RecitePage() {
 }
 
 function MicButton({
-  state,
+  isListening,
   onStart,
   onStop,
 }: {
-  state: ReturnType<typeof useRecitation>['status'];
+  isListening: boolean;
   onStart: () => void;
   onStop: () => void;
 }) {
-  const listening = state === 'listening' || state === 'transcribing';
   return (
     <button
-      onClick={listening ? onStop : onStart}
-      disabled={state === 'requesting-mic'}
+      onClick={isListening ? onStop : onStart}
       className={`flex items-center gap-2 px-5 py-3 rounded-full font-semibold transition shadow ${
-        listening
+        isListening
           ? 'bg-red-500 text-white animate-pulse hover:bg-red-600'
           : 'bg-[color:var(--teal)] text-white hover:opacity-95'
-      } disabled:opacity-50`}
+      }`}
     >
-      <span className="text-lg">{listening ? '⏹' : '🎤'}</span>
-      <span className="text-sm">
-        {state === 'requesting-mic'
-          ? 'Requesting mic…'
-          : state === 'listening'
-            ? 'Listening — recite'
-            : state === 'transcribing'
-              ? 'Transcribing…'
-              : 'Start reciting'}
-      </span>
+      <span className="text-lg">{isListening ? '⏹' : '🎤'}</span>
+      <span className="text-sm">{isListening ? 'Stop' : 'Start reciting'}</span>
     </button>
   );
 }

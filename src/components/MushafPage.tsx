@@ -24,6 +24,7 @@ interface PageVerse {
 interface Props {
   pageNumber: number;
   onSelectSimilar: (sourceKey: string, similarKey: string) => void;
+  onSelectAyah?: (verseKey: string) => void;
 }
 
 const QCF_CDN = 'https://static.qurancdn.com/fonts/quran/hafs/v1/woff2';
@@ -44,7 +45,7 @@ function loadQcfFont(page: number) {
   document.head.appendChild(style);
 }
 
-export default function MushafPage({ pageNumber, onSelectSimilar }: Props) {
+export default function MushafPage({ pageNumber, onSelectSimilar, onSelectAyah }: Props) {
   const [words, setWords] = useState<PageWord[]>([]);
   const [verses, setVerses] = useState<PageVerse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -164,6 +165,7 @@ export default function MushafPage({ pageNumber, onSelectSimilar }: Props) {
                       mutEntry={entry}
                       difficulty={difficulty}
                       onSelectSimilar={onSelectSimilar}
+                      onSelectAyah={onSelectAyah}
                     />
                   );
                 })}
@@ -173,22 +175,28 @@ export default function MushafPage({ pageNumber, onSelectSimilar }: Props) {
         })}
       </div>
 
-      {/* Verse badges at bottom */}
+      {/* Verse badges at bottom — tap any to open Notes/Bookmark/AI panel */}
       <div className="mt-4 pt-3 border-t border-[color:var(--line)]">
+        <p className="text-center text-[10px] text-[color:var(--ink-muted)] mb-2">
+          Tap a verse to bookmark, add notes, or get AI tips
+        </p>
         <div className="flex flex-wrap gap-1.5 justify-center">
           {verses.map((v) => {
             const { difficulty } = verseMut(v.verseKey);
             return (
-              <span
+              <button
                 key={v.verseKey}
-                className={`text-xs px-2 py-0.5 rounded-full ${
+                type="button"
+                onClick={() => onSelectAyah?.(v.verseKey)}
+                className={`text-xs px-2 py-0.5 rounded-full transition hover:ring-2 hover:ring-[color:var(--teal)] hover:ring-offset-1 ${
                   difficulty
                     ? `badge-${difficulty}`
                     : 'bg-[color:var(--line)] text-[color:var(--ink-muted)]'
                 }`}
+                title={`Open ${v.verseKey}`}
               >
                 {v.verseKey}
-              </span>
+              </button>
             );
           })}
         </div>

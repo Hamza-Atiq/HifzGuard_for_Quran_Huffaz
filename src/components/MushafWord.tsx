@@ -10,6 +10,7 @@ interface Props {
   mutEntry: MutashabihEntry | null;
   difficulty: Difficulty | null;
   onSelectSimilar: (sourceKey: string, similarKey: string) => void;
+  onSelectAyah?: (verseKey: string) => void;
 }
 
 export default function MushafWord({
@@ -19,6 +20,7 @@ export default function MushafWord({
   mutEntry,
   difficulty,
   onSelectSimilar,
+  onSelectAyah,
 }: Props) {
   const [showPopup, setShowPopup] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
@@ -41,7 +43,14 @@ export default function MushafWord({
       ref={ref}
       className={`mushaf-word ${colorClass}`}
       style={{ fontFamily }}
-      onClick={() => mutEntry && setShowPopup((v) => !v)}
+      onClick={() => {
+        if (mutEntry) {
+          setShowPopup((v) => !v);
+        } else if (onSelectAyah) {
+          // Non-mutashabih word: open the ayah panel directly
+          onSelectAyah(verseKey);
+        }
+      }}
     >
       {code}
       {showPopup && mutEntry && (
@@ -70,6 +79,21 @@ export default function MushafWord({
               </button>
             ))}
           </div>
+          {/* Ayah actions divider */}
+          {onSelectAyah && (
+            <div className="mt-2 pt-2 border-t border-[color:var(--line)]">
+              <button
+                onClick={() => {
+                  setShowPopup(false);
+                  onSelectAyah(verseKey);
+                }}
+                className="w-full text-left px-3 py-2 rounded-lg text-xs hover:bg-[color:var(--line)] transition text-[color:var(--ink-muted)]"
+                style={{ fontFamily: 'Inter, sans-serif' }}
+              >
+                📝 Notes & Bookmark →
+              </button>
+            </div>
+          )}
         </div>
       )}
     </span>

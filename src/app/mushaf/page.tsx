@@ -2,6 +2,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import MushafPage from '@/components/MushafPage';
 import MushafComparePanel from '@/components/MushafComparePanel';
+import MushafAyahPanel from '@/components/MushafAyahPanel';
+import { getMutashabihatMap } from '@/lib/mutashabihat';
 
 const PARAH_START_PAGES: number[] = [
   1, 22, 42, 62, 82, 102, 121, 142, 162, 182,
@@ -14,11 +16,16 @@ interface Comparison {
   similarKey: string;
 }
 
+type PanelMode = 'compare' | 'ayah' | null;
+
 export default function MushafView() {
   const [page, setPage] = useState(1);
   const [pageInput, setPageInput] = useState('1');
   const [parah, setParah] = useState(1);
   const [comparison, setComparison] = useState<Comparison | null>(null);
+  const [selectedAyah, setSelectedAyah] = useState<string | null>(null);
+  const [panelMode, setPanelMode] = useState<PanelMode>(null);
+  const mutMap = getMutashabihatMap();
   const leftPanelRef = useRef<HTMLDivElement>(null);
   const comparePanelRef = useRef<HTMLDivElement>(null);
   const rightPanelRef = useRef<HTMLDivElement>(null);
@@ -50,7 +57,21 @@ export default function MushafView() {
 
   const handleSelectSimilar = useCallback((sourceKey: string, similarKey: string) => {
     setComparison({ sourceKey, similarKey });
-    // Auto-scroll: on desktop scroll left panel to top; on mobile scroll page to comparison
+    setSelectedAyah(null);
+    setPanelMode('compare');
+    requestAnimationFrame(() => {
+      if (window.innerWidth >= 1024) {
+        leftPanelRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        comparePanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  }, []);
+
+  const handleSelectAyah = useCallback((verseKey: string) => {
+    setSelectedAyah(verseKey);
+    setComparison(null);
+    setPanelMode('ayah');
     requestAnimationFrame(() => {
       if (window.innerWidth >= 1024) {
         leftPanelRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
@@ -95,6 +116,8 @@ export default function MushafView() {
         goToPage(page + 1);
       } else if (e.key === 'Escape') {
         setComparison(null);
+        setSelectedAyah(null);
+        setPanelMode(null);
       }
     }
     window.addEventListener('keydown', handleKey);
@@ -107,7 +130,7 @@ export default function MushafView() {
       <div className="text-center mb-5 fade-up">
         <h1 className="text-2xl font-bold text-[color:var(--ink)]">Mushaf View</h1>
         <p className="text-sm text-[color:var(--ink-muted)] mt-1">
-          Tap colored words to compare with similar verses side-by-side.
+          Tap colored words to compare · tap verse badges below each page to bookmark, add notes, or get AI tips.
         </p>
       </div>
 
@@ -196,28 +219,41 @@ export default function MushafView() {
             </p>
           </div>
 
-          {/* Comparison panel */}
+          {/* Side panel — compare or ayah actions */}
           <div ref={comparePanelRef}>
-          {comparison ? (
-            <MushafComparePanel
-              sourceKey={comparison.sourceKey}
-              similarKey={comparison.similarKey}
-              onClose={() => setComparison(null)}
-            />
-          ) : (
-            <div className="card p-6 text-center">
-              <div className="text-3xl mb-3 opacity-30">☝</div>
-              <p className="text-sm text-[color:var(--ink-muted)]">
-                Tap a colored word in the mushaf to see its similar verses compared here with word-level highlighting.
-              </p>
-            </div>
-          )}
+            {panelMode === 'compare' && comparison && (
+              <MushafComparePanel
+                sourceKey={comparison.sourceKey}
+                similarKey={comparison.similarKey}
+                onClose={() => { setComparison(null); setPanelMode(null); }}
+              />
+            )}
+            {panelMode === 'ayah' && selectedAyah && (
+              <MushafAyahPanel
+                verseKey={selectedAyah}
+                mutEntry={mutMap.get(selectedAyah) ?? null}
+                onClose={() => { setSelectedAyah(null); setPanelMode(null); }}
+              />
+            )}
+            {panelMode === null && (
+              <div className="card p-6 text-center">
+                <div className="text-3xl mb-3 opacity-30">☝</div>
+                <p className="text-sm text-[color:var(--ink-muted)]">
+                  Tap a <strong>colored word</strong> to compare with similar verses, or tap a{' '}
+                  <strong>verse badge</strong> below the page to bookmark, add notes, or get an AI tip.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
         {/* RIGHT PANEL — mushaf page */}
         <div ref={rightPanelRef} className="flex-1 min-w-0 overflow-hidden">
-          <MushafPage pageNumber={page} onSelectSimilar={handleSelectSimilar} />
+          <MushafPage
+            pageNumber={page}
+            onSelectSimilar={handleSelectSimilar}
+            onSelectAyah={handleSelectAyah}
+          />
 
           {/* Bottom navigation */}
           <div className="flex items-center justify-between mt-5">

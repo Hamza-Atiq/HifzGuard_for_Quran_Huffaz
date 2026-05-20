@@ -12,9 +12,9 @@ interface ReqBody {
 }
 
 export async function POST(req: Request) {
-  if (!process.env.GEMINI_API_KEY) {
+  if (!process.env.GEMINI_API_KEY && !process.env.GROQ_API_KEY) {
     return NextResponse.json(
-      { error: 'GEMINI_API_KEY not configured on the server' },
+      { error: 'No AI backend configured. Set GEMINI_API_KEY or GROQ_API_KEY.' },
       { status: 503 },
     );
   }

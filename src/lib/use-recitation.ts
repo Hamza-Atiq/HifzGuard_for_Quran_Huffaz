@@ -28,6 +28,9 @@ export interface UseRecitationState {
 export interface UseRecitationOptions {
   /** How long each audio chunk should be before we ship it to the server. */
   chunkMs?: number;
+  /** The verse text currently being recited — passed to Whisper as initial_prompt
+   *  to prevent hallucination of non-Arabic words. */
+  expectedVerse?: string;
   /** Optional callback invoked each time a new chunk transcript arrives. */
   onChunk?: (chunk: RecitationChunk, fullTranscript: string) => void;
 }
@@ -47,14 +50,20 @@ export function useRecitation(opts: UseRecitationOptions = {}): UseRecitationSta
   const transcriptRef = useRef('');
   const onChunkRef = useRef(opts.onChunk);
   onChunkRef.current = opts.onChunk;
+  const expectedVerseRef = useRef(opts.expectedVerse);
+  expectedVerseRef.current = opts.expectedVerse;
 
   const sendChunk = useCallback(async (blob: Blob) => {
     if (blob.size < 1000) return; // skip silence-only chunks
     try {
       setStatus((s) => (s === 'listening' ? 'transcribing' : s));
+      const headers: Record<string, string> = { 'Content-Type': blob.type || 'audio/webm' };
+      if (expectedVerseRef.current) {
+        headers['x-verse-text'] = expectedVerseRef.current;
+      }
       const res = await fetch('/api/recitation/transcribe', {
         method: 'POST',
-        headers: { 'Content-Type': blob.type || 'audio/webm' },
+        headers,
         body: blob,
       });
       const j = await res.json();

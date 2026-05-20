@@ -65,10 +65,10 @@ function buildPrompt(input: MnemonicInput): string {
   }
   lines.push(
     '',
-    'Return JSON with four fields:',
-    '- explanation: why these are similar and what each is actually about',
-    '- memoryTrick: a vivid, concrete mnemonic to tell them apart',
-    '- divergenceWord: the Arabic word where the verses first diverge',
+    'Return JSON with exactly four fields:',
+    '- explanation: why these are similar and what each is actually about (2-3 sentences)',
+    '- memoryTrick: a vivid, concrete mnemonic to tell them apart (2-4 sentences)',
+    '- divergenceWord: the Arabic word where the verses first diverge (Arabic only, no transliteration)',
     '- difficultyReason: one sentence on why this pair is hard',
     '',
     'Keep it practical, warm, and respectful. No transliteration. No filler.',
@@ -76,7 +76,15 @@ function buildPrompt(input: MnemonicInput): string {
   return lines.join('\n');
 }
 
-export async function generateMnemonic(input: MnemonicInput): Promise<Mnemonic> {
+function validateMnemonic(parsed: unknown): Mnemonic {
+  const m = parsed as Mnemonic;
+  if (!m.explanation || !m.memoryTrick || !m.divergenceWord || !m.difficultyReason) {
+    throw new Error('AI response missing required fields');
+  }
+  return m;
+}
+
+async function generateMnemonicGemini(input: MnemonicInput): Promise<Mnemonic> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY not set');
 
@@ -93,20 +101,50 @@ export async function generateMnemonic(input: MnemonicInput): Promise<Mnemonic> 
 
   const text = res.text;
   if (!text) throw new Error('Empty response from Gemini');
+  return validateMnemonic(JSON.parse(text));
+}
 
-  let parsed: Mnemonic;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    throw new Error(`Gemini returned non-JSON: ${text.slice(0, 200)}`);
+async function generateMnemonicGroq(input: MnemonicInput): Promise<Mnemonic> {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) throw new Error('GROQ_API_KEY not set');
+
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: process.env.GROQ_LLM_MODEL || 'llama-3.3-70b-versatile',
+      messages: [
+        { role: 'system', content: 'You are a Quran memorisation expert. Always reply with valid JSON only.' },
+        { role: 'user', content: buildPrompt(input) },
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.8,
+      max_tokens: 800,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text().catch(() => '');
+    throw new Error(`Groq API error ${res.status}: ${err.slice(0, 200)}`);
   }
-  if (
-    !parsed.explanation ||
-    !parsed.memoryTrick ||
-    !parsed.divergenceWord ||
-    !parsed.difficultyReason
-  ) {
-    throw new Error('Gemini response missing required fields');
+
+  const data = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
+  const text = data.choices?.[0]?.message?.content;
+  if (!text) throw new Error('Empty response from Groq');
+  return validateMnemonic(JSON.parse(text));
+}
+
+export async function generateMnemonic(input: MnemonicInput): Promise<Mnemonic> {
+  // Try Gemini first; if it fails (rate limit, quota, etc.) fall back to Groq Llama.
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      return await generateMnemonicGemini(input);
+    } catch (err) {
+      console.warn('[ai-mnemonic] Gemini failed, falling back to Groq:', (err as Error).message);
+    }
   }
-  return parsed;
+  return generateMnemonicGroq(input);
 }

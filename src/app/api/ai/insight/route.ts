@@ -42,9 +42,9 @@ const responseSchema = {
 };
 
 export async function POST(req: Request) {
-  if (!process.env.GEMINI_API_KEY) {
+  if (!process.env.GEMINI_API_KEY && !process.env.GROQ_API_KEY) {
     return NextResponse.json(
-      { error: 'GEMINI_API_KEY not configured on the server' },
+      { error: 'No AI backend configured. Set GEMINI_API_KEY or GROQ_API_KEY.' },
       { status: 503 },
     );
   }
@@ -162,11 +162,13 @@ export async function POST(req: Request) {
     'Be specific, quote Arabic where helpful, and keep each field to 1-2 sentences. No transliteration.',
   );
 
-  try {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  const prompt = promptLines.join('\n');
+
+  async function callGemini(): Promise<InsightSchema> {
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
     const res = await ai.models.generateContent({
       model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
-      contents: promptLines.join('\n'),
+      contents: prompt,
       config: {
         responseMimeType: 'application/json',
         responseSchema,
@@ -175,7 +177,46 @@ export async function POST(req: Request) {
     });
     const text = res.text;
     if (!text) throw new Error('Empty Gemini response');
-    const parsed = JSON.parse(text) as InsightSchema;
+    return JSON.parse(text) as InsightSchema;
+  }
+
+  async function callGroq(): Promise<InsightSchema> {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: process.env.GROQ_LLM_MODEL || 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: 'You are a Quran memorisation coach. Reply with valid JSON only.' },
+          { role: 'user', content: prompt },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.7,
+        max_tokens: 600,
+      }),
+    });
+    if (!res.ok) throw new Error(`Groq ${res.status}: ${await res.text().catch(() => '')}`);
+    const data = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
+    const text = data.choices?.[0]?.message?.content;
+    if (!text) throw new Error('Empty Groq response');
+    return JSON.parse(text) as InsightSchema;
+  }
+
+  try {
+    let parsed: InsightSchema;
+    if (process.env.GEMINI_API_KEY) {
+      try {
+        parsed = await callGemini();
+      } catch (geminiErr) {
+        console.warn('[insight] Gemini failed, trying Groq:', (geminiErr as Error).message);
+        parsed = await callGroq();
+      }
+    } else {
+      parsed = await callGroq();
+    }
     return NextResponse.json({
       ok: true,
       insight: parsed,
