@@ -211,14 +211,13 @@ export const notes = {
     call<QfNotesResponse>(verseKey ? `/notes?ranges=${encodeURIComponent(verseKey)}` : '/notes'),
   create: (body: string, verseKey: string) => {
     const { surah, ayah } = parseKey(verseKey);
-    // Mirrors the bookmark schema — ayah-typed entity, integer key + verseNumber.
+    // Notes attach to a verse range (NOT a single ayah key like bookmarks).
+    // Matches the activity-days / posts shape: ranges as object array.
     return call<QfNote>('/notes', {
       method: 'POST',
       body: JSON.stringify({
         body,
-        type: 'ayah',
-        key: surah,
-        verseNumber: ayah,
+        ranges: [{ chapterId: surah, from: ayah, to: ayah }],
       }),
     });
   },

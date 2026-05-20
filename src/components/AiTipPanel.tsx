@@ -44,6 +44,7 @@ export default function AiTipPanel({ sourceKey, similarKeys, needsContext }: Pro
   const [error, setError] = useState<string | null>(null);
   const [mnemonic, setMnemonic] = useState<Mnemonic | null>(() => loadCached(sourceKey));
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'local'>('idle');
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   async function generate(force = false) {
     if (!force && mnemonic) {
@@ -87,13 +88,15 @@ export default function AiTipPanel({ sourceKey, similarKeys, needsContext }: Pro
       `Why hard: ${mnemonic.difficultyReason}`,
     ].join('\n');
 
+    setSaveError(null);
     try {
       const res = await fetch('/api/user/notes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ body, verseKey: sourceKey }),
       });
-      if (res.ok) {
+      const payload = await res.json().catch(() => ({}));
+      if (res.ok && payload.ok) {
         setSaveState('saved');
         return;
       }
@@ -104,9 +107,13 @@ export default function AiTipPanel({ sourceKey, similarKeys, needsContext }: Pro
         setSaveState('idle');
         return;
       }
-      // 403 / scope_missing / anything else — already cached locally
+      // Surface QF's actual error so we can debug payload mismatches instead
+      // of silently falling back to localStorage.
+      const reason = payload.message || payload.error || `HTTP ${res.status}`;
+      setSaveError(reason);
       setSaveState('local');
-    } catch {
+    } catch (e) {
+      setSaveError((e as Error).message);
       setSaveState('local');
     }
   }
@@ -167,7 +174,7 @@ export default function AiTipPanel({ sourceKey, similarKeys, needsContext }: Pro
                 small
               />
 
-              <div className="flex items-center justify-end gap-2 pt-1">
+              <div className="flex items-center justify-end gap-2 pt-1 flex-wrap">
                 {saveState === 'saved' && (
                   <span className="text-[11px] text-emerald-700 dark:text-emerald-300">
                     ✓ saved to your notes
@@ -175,7 +182,7 @@ export default function AiTipPanel({ sourceKey, similarKeys, needsContext }: Pro
                 )}
                 {saveState === 'local' && (
                   <span className="text-[11px] text-amber-700 dark:text-amber-300">
-                    saved locally (Notes scope pending)
+                    saved locally — {saveError ?? 'server rejected'}
                   </span>
                 )}
                 <button

@@ -3,10 +3,14 @@ import { NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const HF_MODEL = process.env.HF_RECITATION_MODEL || 'tarteel-ai/whisper-base-ar-quran';
-// HF migrated from `api-inference.huggingface.co/models/...` to the router-based
-// Inference Providers endpoint. The legacy path now returns 404 "Cannot POST"
-// because models are served behind /hf-inference/models/* via the router.
+// `tarteel-ai/whisper-base-ar-quran` (the Quran-specialised model) is NOT
+// deployed by any HF Inference Provider — only available via local Transformers
+// or self-hosting. We use `whisper-large-v3-turbo` instead: served on the
+// hf-inference provider, handles Arabic recitation well (Whisper was trained
+// on multilingual data including Arabic), and is fast enough for chunked
+// recognition. Set HF_RECITATION_MODEL env to override if/when Tarteel ships
+// a provider-served variant.
+const HF_MODEL = process.env.HF_RECITATION_MODEL || 'openai/whisper-large-v3-turbo';
 const HF_API_URL =
   process.env.HF_INFERENCE_URL ||
   `https://router.huggingface.co/hf-inference/models/${HF_MODEL}`;

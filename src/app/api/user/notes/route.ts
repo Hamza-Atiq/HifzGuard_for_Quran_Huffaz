@@ -30,11 +30,8 @@ export async function POST(req: Request) {
   }
   const result = await notes.create(body, verseKey);
   if (!result.ok) {
-    if (result.reason === 'scope_missing') {
-      return NextResponse.json({ skipped: true, reason: 'scope_missing' });
-    }
     return NextResponse.json(
-      { error: result.reason, message: result.message },
+      { error: result.reason, message: result.message ?? `HTTP ${result.status}` },
       { status: result.status || 500 },
     );
   }
