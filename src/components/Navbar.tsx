@@ -92,12 +92,12 @@ export default function Navbar() {
               </button>
               {menuOpen && (
                 <div className="absolute right-0 mt-2 w-44 rounded-xl border border-[color:var(--line)] bg-[color:var(--bg-card)] shadow-lg overflow-hidden text-sm">
-                  <button
-                    onClick={() => { auth.signOut(); setMenuOpen(false); }}
-                    className="w-full text-left px-4 py-2 hover:bg-[color:var(--line)]/40"
+                  <a
+                    href="/api/auth/logout"
+                    className="block w-full text-left px-4 py-2 hover:bg-[color:var(--line)]/40"
                   >
                     Sign out
-                  </button>
+                  </a>
                 </div>
               )}
             </div>

@@ -1,18 +1,25 @@
 import { NextResponse } from 'next/server';
-import { clearSession } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function POST() {
-  await clearSession();
-  return NextResponse.json({ ok: true });
+const TOKEN_COOKIE = 'qf_access_token';
+const REFRESH_COOKIE = 'qf_refresh_token';
+
+// Delete cookies via NextResponse — cookies().delete() in Route Handlers does
+// not reliably emit Set-Cookie headers; setting on the response object does.
+function deleteCookies(res: NextResponse): NextResponse {
+  res.cookies.set(TOKEN_COOKIE, '', { maxAge: 0, path: '/', httpOnly: true, sameSite: 'lax' });
+  res.cookies.set(REFRESH_COOKIE, '', { maxAge: 0, path: '/', httpOnly: true, sameSite: 'lax' });
+  return res;
 }
 
-// GET variant used by the dashboard "Sign out & re-login" button:
-// clears the session cookie then redirects straight to the OAuth login flow.
+export async function POST() {
+  return deleteCookies(NextResponse.json({ ok: true }));
+}
+
+// GET: clears session then redirects to login (used by dashboard re-login button).
 export async function GET() {
-  await clearSession();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  return NextResponse.redirect(`${appUrl}/api/auth/login`);
+  return deleteCookies(NextResponse.redirect(`${appUrl}/api/auth/login`));
 }
