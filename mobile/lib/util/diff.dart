@@ -2,12 +2,12 @@
 /// project's `src/lib/diff.ts` so the matcher produces identical results
 /// in mobile and on the web.
 
-final _tashkeel = RegExp(r'[ً-ٰٟۖ-ۭـ]');
+final _tashkeel = RegExp(r'[ً-ٰٟۖ-ۭـ]');
 
 String normalize(String word) {
   return word
       .replaceAll(_tashkeel, '')
-      .replaceAll(RegExp(r'[آأإ]'), 'ا') // alif variants → bare alif
+      .replaceAll(RegExp(r'[آأإٱ]'), 'ا') // alif variants + alef wasla → bare alif
       .replaceAll('ة', 'ه') // ta marbuta → ha
       .replaceAll('ى', 'ي') // alif maqsura → ya
       .trim();
@@ -73,6 +73,9 @@ DiffResult diffVerses(List<String> a, List<String> b) {
 /// Walk through the expected verse word-by-word, looking for each word in
 /// the transcript in-order. Returns -1 if the user completed the verse OK,
 /// otherwise the index of the first expected-word they diverged on.
+///
+/// Stops early if the transcript runs out — words the user hasn't reached
+/// yet are not flagged as errors (frontier guard).
 int findDivergenceIndex(
   String transcript,
   String expected, {
@@ -84,6 +87,9 @@ int findDivergenceIndex(
   var ti = 0;
   var consecutiveMisses = 0;
   for (var ei = 0; ei < e.length; ei++) {
+    // Stop when we've exhausted the transcript — no divergence beyond here yet.
+    if (ti >= t.length) break;
+
     var hitAt = -1;
     for (var k = 0; k < lookahead && ti + k < t.length; k++) {
       if (t[ti + k] == e[ei]) {

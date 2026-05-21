@@ -93,10 +93,15 @@ export default function RecitePage() {
     }
 
     if (result.divergenceIndex !== null) {
-      const now = Date.now();
-      if (now - lastBeepedAt.current > 1500) {
-        playMistakeBeep();
-        lastBeepedAt.current = now;
+      // Only beep when divergence is clearly within recited territory, not at
+      // the very edge where it could be a frontier artefact.
+      const withinRecited = result.divergenceIndex < result.matchedCount + 2;
+      if (withinRecited) {
+        const now = Date.now();
+        if (now - lastBeepedAt.current > 1500) {
+          playMistakeBeep();
+          lastBeepedAt.current = now;
+        }
       }
       if (similarTexts.length > 0) {
         const driftRes = detectDrift(full, currentKey, verse.textUthmani, similarTexts);

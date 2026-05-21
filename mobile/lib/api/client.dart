@@ -66,10 +66,20 @@ class ApiClient {
 
   /// Send a recorded audio chunk for Whisper transcription.
   /// [audio] must be raw bytes of an audio file (mp4/m4a/wav supported).
-  Future<String> transcribeChunk(Uint8List audio, String mimeType) async {
+  /// [verseText] is the Arabic text of the verse being recited — passed as
+  /// initial_prompt to Groq/Whisper to prevent English hallucinations.
+  Future<String> transcribeChunk(
+    Uint8List audio,
+    String mimeType, {
+    String? verseText,
+  }) async {
+    final headers = <String, String>{'Content-Type': mimeType};
+    if (verseText != null && verseText.isNotEmpty) {
+      headers['x-verse-text'] = verseText;
+    }
     final res = await http.post(
       _uri('/api/recitation/transcribe'),
-      headers: {'Content-Type': mimeType},
+      headers: headers,
       body: audio,
     );
     if (res.statusCode != 200) {

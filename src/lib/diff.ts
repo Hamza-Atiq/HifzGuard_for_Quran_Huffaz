@@ -4,13 +4,13 @@ import type { Word, DiffWord } from '@/types';
  * Strip Arabic diacritics (tashkeel) and tatweel for stable word comparison.
  * The user still SEES the verses with tashkeel — we only normalize for matching.
  */
-const TASHKEEL_RE = /[\u064B-\u065F\u0670\u06D6-\u06ED\u0640]/g;
+const TASHKEEL_RE = /[ً-ٰٟۖ-ۭـ]/g;
 export function normalize(word: string): string {
   return word
     .replace(TASHKEEL_RE, '')
-    .replace(/[\u0622\u0623\u0625]/g, '\u0627') // alif variants → bare alif
-    .replace(/\u0629/g, '\u0647')               // ta marbuta → ha
-    .replace(/\u0649/g, '\u064A')               // alif maqsura → ya
+    .replace(/[آأإٱ]/g, 'ا') // alif variants + alef wasla → bare alif
+    .replace(/ة/g, 'ه')               // ta marbuta → ha
+    .replace(/ى/g, 'ي')               // alif maqsura → ya
     .trim();
 }
 

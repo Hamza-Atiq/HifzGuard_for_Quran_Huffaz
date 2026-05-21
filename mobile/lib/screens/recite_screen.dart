@@ -77,6 +77,8 @@ class _ReciteScreenState extends State<ReciteScreen> {
         _verse = vs.isNotEmpty ? vs.first : null;
         _similarTexts = similar;
       });
+      // Keep the service aware of which verse we're on so Groq gets the right prompt
+      _service.updateVerseText(_verse?.textUthmani);
     } catch (e) {
       setState(() => _error = e.toString());
     }
@@ -251,7 +253,7 @@ class _ReciteScreenState extends State<ReciteScreen> {
                       const Spacer(),
                       _MicButton(
                         listening: _listening,
-                        onStart: () => _service.start(),
+                        onStart: () => _service.start(verseText: _verse?.textUthmani),
                         onStop: () => _service.stop(),
                       ),
                     ],

@@ -16,6 +16,7 @@ class RecitationService {
   final _events = StreamController<RecitationEvent>.broadcast();
   bool _running = false;
   String _transcript = '';
+  String? _verseText; // current expected verse — sent as initial_prompt to Groq
 
   RecitationService({this.chunkDuration = const Duration(seconds: 4)});
 
@@ -28,17 +29,27 @@ class RecitationService {
     return status.isGranted;
   }
 
-  Future<void> start() async {
+  /// [verseText] is the Arabic text of the verse the user is reciting.
+  /// It is sent to the backend as initial_prompt for Groq Whisper so the model
+  /// stays in Arabic and avoids hallucinating English words.
+  Future<void> start({String? verseText}) async {
     if (_running) return;
     final ok = await _ensureMic();
     if (!ok) {
       _events.add(RecitationEvent.error('Microphone permission denied'));
       return;
     }
+    _verseText = verseText;
     _transcript = '';
     _running = true;
     _events.add(RecitationEvent.listening());
     _cycle(); // fire and forget
+  }
+
+  /// Call this when the user moves to a different verse while still recording.
+  void updateVerseText(String? verseText) {
+    _verseText = verseText;
+    _transcript = ''; // reset accumulated transcript for new verse
   }
 
   Future<void> stop() async {
@@ -74,7 +85,7 @@ class RecitationService {
         if (filePath == null) continue;
 
         // Fire transcription in parallel — don't block the next cycle
-        unawaited(_transcribeFile(filePath));
+        unawaited(_transcribeFile(filePath, _verseText));
       } catch (e) {
         _events.add(RecitationEvent.error(e.toString()));
         await Future.delayed(const Duration(milliseconds: 500));
@@ -82,13 +93,16 @@ class RecitationService {
     }
   }
 
-  Future<void> _transcribeFile(String path) async {
+  Future<void> _transcribeFile(String path, String? verseText) async {
     try {
       final file = File(path);
       if (!await file.exists()) return;
       final bytes = await file.readAsBytes();
-      // m4a / aac in everyone's eyes — Whisper accepts it
-      final text = await ApiClient.instance.transcribeChunk(bytes, 'audio/m4a');
+      final text = await ApiClient.instance.transcribeChunk(
+        bytes,
+        'audio/m4a',
+        verseText: verseText,
+      );
       await file.delete().catchError((_) => file);
       _transcript = (_transcript + ' ' + text).trim();
       _events.add(RecitationEvent.chunk(text, _transcript));

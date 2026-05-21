@@ -42,6 +42,11 @@ export function findDivergence(
   let consecutiveMisses = 0;
 
   for (let ei = 0; ei < e.length; ei++) {
+    // Don't declare divergence beyond what the user has recited yet.
+    // If we've consumed all transcript tokens, stop here — the user simply
+    // hasn't reached this expected word yet, so there is no error to report.
+    if (ti >= t.length) break;
+
     // Search forward in transcript for this expected word
     let hitAt = -1;
     for (let k = 0; k < lookahead && ti + k < t.length; k++) {
