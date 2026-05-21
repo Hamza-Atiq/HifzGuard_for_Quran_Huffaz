@@ -159,12 +159,12 @@ export default function DashboardPage() {
             <strong>Your session is missing API scopes</strong> — bookmarks, activity, and streak
             data won&apos;t save until you sign out and sign back in.
           </span>
-          <button
-            onClick={() => { window.location.href = '/api/auth/logout'; }}
+          <a
+            href="/api/auth/logout"
             className="shrink-0 px-3 py-1.5 rounded-full bg-amber-600 text-white text-xs font-semibold hover:bg-amber-700 transition"
           >
-            Sign out &amp; re-login
-          </button>
+            Sign out
+          </a>
         </div>
       )}
 

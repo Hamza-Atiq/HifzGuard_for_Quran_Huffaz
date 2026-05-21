@@ -107,11 +107,12 @@ export async function exchangeCode(code: string, state: string): Promise<void> {
     // back to the user via the AuthBanner so we can debug from the URL.
     throw new Error(`Token exchange failed: ${res.status} — ${respText.slice(0, 300)}`);
   }
+  const isProduction = process.env.NODE_ENV === 'production';
   const json = await res.json();
   c.set(TOKEN_COOKIE, json.access_token, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: true,
+    secure: isProduction,
     path: '/',
     maxAge: json.expires_in ?? 3600,
   });
@@ -119,7 +120,7 @@ export async function exchangeCode(code: string, state: string): Promise<void> {
     c.set(REFRESH_COOKIE, json.refresh_token, {
       httpOnly: true,
       sameSite: 'lax',
-      secure: true,
+      secure: isProduction,
       path: '/',
       maxAge: 60 * 60 * 24 * 30,
     });
