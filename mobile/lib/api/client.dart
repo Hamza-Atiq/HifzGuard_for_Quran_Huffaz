@@ -68,6 +68,10 @@ class ApiClient {
   /// [audio] must be raw bytes of an audio file (mp4/m4a/wav supported).
   /// [verseText] is the Arabic text of the verse being recited — passed as
   /// initial_prompt to Groq/Whisper to prevent English hallucinations.
+  ///
+  /// NOTE: Dart's HTTP client (RFC 7230) rejects non-ASCII header values, so
+  /// the Arabic verse text is base64-encoded into x-verse-text-b64. The server
+  /// decodes it on arrival. Web clients use x-verse-text (plain UTF-8) instead.
   Future<String> transcribeChunk(
     Uint8List audio,
     String mimeType, {
@@ -75,7 +79,7 @@ class ApiClient {
   }) async {
     final headers = <String, String>{'Content-Type': mimeType};
     if (verseText != null && verseText.isNotEmpty) {
-      headers['x-verse-text'] = verseText;
+      headers['x-verse-text-b64'] = base64Encode(utf8.encode(verseText));
     }
     final res = await http.post(
       _uri('/api/recitation/transcribe'),

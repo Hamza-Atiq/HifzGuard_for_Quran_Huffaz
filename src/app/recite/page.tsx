@@ -77,13 +77,18 @@ export default function RecitePage() {
   // Shared handler — called by both Web Speech (realtime) and Whisper (fallback)
   function handleTranscript(full: string) {
     if (!verse || completedRef.current) return;
-    // tolerateMisses=2 handles Uthmanic spellings that ASR transcribes differently
-    // (e.g. الصلوة → الصلاة, ومما → وما) without declaring false divergences.
-    const result = findDivergence(full, verse.textUthmani, { tolerateMisses: 2 });
+    const result = findDivergence(full, verse.textUthmani, { tolerateMisses: 1 });
     setMatchedWords(result.matchedCount);
     setDivergenceIdx(result.divergenceIndex);
 
-    if (result.completed) {
+    // Completion guard: the وٰ normalization fixes most Uthmanic spelling gaps,
+    // but also require an absolute minimum of 3 words matched so short verses
+    // (2–4 words) can't advance after a single lucky word.
+    const eLen = verse.textUthmani.trim().split(/\s+/).filter(Boolean).length;
+    const minWords = eLen <= 3 ? eLen : Math.max(3, Math.ceil(eLen * 0.75));
+    const isCompleted = result.completed && result.matchedCount >= minWords;
+
+    if (isCompleted) {
       completedRef.current = true;
       setCompletedVerses((c) => c + 1);
       // Restart the recognition session immediately so the old session's

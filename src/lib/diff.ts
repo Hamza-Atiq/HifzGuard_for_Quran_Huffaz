@@ -3,10 +3,19 @@ import type { Word, DiffWord } from '@/types';
 /**
  * Strip Arabic diacritics (tashkeel) and tatweel for stable word comparison.
  * The user still SEES the verses with tashkeel — we only normalize for matching.
+ *
+ * Order matters:
+ * 1. Silent-waw fix first: in Uthmanic script و+superscript-alef (U+0648+U+0670) is
+ *    spelled like الصَّلَوٰةَ but pronounced like الصلاة. Replace before stripping U+0670.
+ * 2. Strip tashkeel (diacritics, shadda, sukun, etc.)
+ * 3. Collapse all alif variants (آأإٱ) to bare alif
+ * 4. ta marbuta → ha,  alif maqsura → ya
  */
 const TASHKEEL_RE = /[ً-ٰٟۖ-ۭـ]/g;
+
 export function normalize(word: string): string {
   return word
+    .replace(/وٰ/g, 'ا')   // Uthmanic silent waw (وٰ) → bare alif — MUST precede tashkeel strip
     .replace(TASHKEEL_RE, '')
     .replace(/[آأإٱ]/g, 'ا') // alif variants + alef wasla → bare alif
     .replace(/ة/g, 'ه')               // ta marbuta → ha

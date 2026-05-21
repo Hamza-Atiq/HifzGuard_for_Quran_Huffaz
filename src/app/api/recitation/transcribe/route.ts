@@ -26,8 +26,14 @@ export async function POST(req: Request) {
   }
 
   const contentType = req.headers.get('content-type') || 'audio/webm';
-  // Expected verse text — used as initial_prompt to suppress hallucination
-  const verseText = req.headers.get('x-verse-text') || '';
+  // Expected verse text — used as initial_prompt to suppress hallucination.
+  // Mobile clients (Flutter/Dart) cannot send Arabic in HTTP headers (RFC 7230
+  // ASCII-only restriction), so they base64-encode it in x-verse-text-b64.
+  // Web clients send it as plain UTF-8 in x-verse-text (browsers handle this).
+  const verseTextB64 = req.headers.get('x-verse-text-b64');
+  const verseText = verseTextB64
+    ? Buffer.from(verseTextB64, 'base64').toString('utf8')
+    : (req.headers.get('x-verse-text') || '');
 
   let bytes: ArrayBuffer;
   try {

@@ -1,13 +1,21 @@
 /// Arabic-aware text normalization + LCS diff, ported 1:1 from the web
 /// project's `src/lib/diff.ts` so the matcher produces identical results
 /// in mobile and on the web.
+///
+/// Normalization order matters — see inline comments.
 
-final _tashkeel = RegExp(r'[ً-ٰٟۖ-ۭـ]');
+final _silentWaw = RegExp('وٰ'); // وٰ (waw + superscript alef)
+final _tashkeel = RegExp('[ً-ٰٟۖ-ۭـ]');
+final _alifVariants = RegExp('[آأإٱ]'); // آأإٱ
 
 String normalize(String word) {
   return word
+      // 1. Uthmanic silent waw (وٰ) → bare alif — must be BEFORE tashkeel strip
+      //    because U+0670 (superscript alef after waw) gets stripped next.
+      //    Covers الصَّلَوٰةَ → الصلاة, الزَّكَوٰةَ → الزكاة, الحَيَوٰةَ → الحياة
+      .replaceAll(_silentWaw, 'ا')
       .replaceAll(_tashkeel, '')
-      .replaceAll(RegExp(r'[آأإٱ]'), 'ا') // alif variants + alef wasla → bare alif
+      .replaceAll(_alifVariants, 'ا') // alif variants + alef wasla → bare alif
       .replaceAll('ة', 'ه') // ta marbuta → ha
       .replaceAll('ى', 'ي') // alif maqsura → ya
       .trim();
@@ -74,8 +82,8 @@ DiffResult diffVerses(List<String> a, List<String> b) {
 /// the transcript in-order. Returns -1 if the user completed the verse OK,
 /// otherwise the index of the first expected-word they diverged on.
 ///
-/// Stops early if the transcript runs out — words the user hasn't reached
-/// yet are not flagged as errors (frontier guard).
+/// Stops early when the transcript runs out (frontier guard) — words the user
+/// hasn't reached yet are not flagged as errors.
 int findDivergenceIndex(
   String transcript,
   String expected, {
@@ -87,9 +95,7 @@ int findDivergenceIndex(
   var ti = 0;
   var consecutiveMisses = 0;
   for (var ei = 0; ei < e.length; ei++) {
-    // Stop when we've exhausted the transcript — no divergence beyond here yet.
-    if (ti >= t.length) break;
-
+    if (ti >= t.length) break; // transcript exhausted — not an error yet
     var hitAt = -1;
     for (var k = 0; k < lookahead && ti + k < t.length; k++) {
       if (t[ti + k] == e[ei]) {

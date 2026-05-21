@@ -3,10 +3,25 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 
 import '../api/client.dart';
-import '../models/mutashabih_entry.dart';
 import '../models/verse.dart';
 import '../services/recitation_service.dart';
 import '../util/diff.dart';
+
+// Number of ayat in each surah (index 0 = Surah 1).
+const _surahVerseCounts = [
+  7, 286, 200, 176, 120, 165, 206, 75, 129, 109, // 1–10
+  123, 111, 43, 52, 99, 128, 111, 110, 98, 135, // 11–20
+  112, 78, 118, 64, 77, 227, 93, 88, 69, 60, // 21–30
+  34, 30, 73, 54, 45, 83, 182, 88, 75, 85, // 31–40
+  54, 53, 89, 59, 37, 35, 38, 29, 18, 45, // 41–50
+  60, 49, 62, 55, 78, 96, 29, 22, 24, 13, // 51–60
+  14, 11, 11, 18, 12, 12, 30, 52, 52, 44, // 61–70
+  28, 28, 20, 56, 40, 31, 50, 40, 46, 42, // 71–80
+  29, 19, 36, 25, 22, 17, 19, 26, 30, 20, // 81–90
+  15, 21, 11, 8, 8, 19, 5, 8, 8, 11, // 91–100
+  11, 8, 3, 9, 5, 4, 7, 3, 6, 3, // 101–110
+  5, 4, 5, 6, // 111–114
+];
 
 class ReciteScreen extends StatefulWidget {
   const ReciteScreen({super.key, this.initialParah = 1});
@@ -44,8 +59,6 @@ class _ReciteScreenState extends State<ReciteScreen> {
   }
 
   String _firstVerseOfParah(int p) {
-    // Parah starts. Full table is overkill — use the mutashabihat API to drop
-    // into the parah, but simpler: hard-code the first ayah of each parah.
     const starts = [
       '1:1', '2:142', '2:253', '3:93', '4:24', '4:148', '5:83', '6:111',
       '7:88', '8:41', '9:94', '11:6', '12:53', '15:1', '17:1', '18:75',
@@ -55,9 +68,42 @@ class _ReciteScreenState extends State<ReciteScreen> {
     return starts[p.clamp(1, 30) - 1];
   }
 
+  void _nextVerse() {
+    final parts = _verseKey.split(':');
+    var surah = int.parse(parts[0]);
+    var ayah = int.parse(parts[1]);
+    final maxAyah = _surahVerseCounts[surah - 1];
+    if (ayah < maxAyah) {
+      ayah++;
+    } else if (surah < 114) {
+      surah++;
+      ayah = 1;
+    } else {
+      return; // already at end of Quran
+    }
+    _service.stop();
+    setState(() => _verseKey = '$surah:$ayah');
+    _loadVerse();
+  }
+
+  void _prevVerse() {
+    final parts = _verseKey.split(':');
+    var surah = int.parse(parts[0]);
+    var ayah = int.parse(parts[1]);
+    if (ayah > 1) {
+      ayah--;
+    } else if (surah > 1) {
+      surah--;
+      ayah = _surahVerseCounts[surah - 1];
+    } else {
+      return; // already at start of Quran
+    }
+    _service.stop();
+    setState(() => _verseKey = '$surah:$ayah');
+    _loadVerse();
+  }
+
   Future<void> _loadVerse() async {
-    // Immediately clear the service transcript so any chunk that arrives
-    // during the fetch doesn't match against the previous verse's text.
     _service.updateVerseText(null);
     setState(() {
       _verse = null;
@@ -103,23 +149,28 @@ class _ReciteScreenState extends State<ReciteScreen> {
         setState(() => _transcript = full);
         if (_verse != null) {
           final matched = matchedCount(full, _verse!.textUthmani);
-          // tolerateMisses=2: handles Uthmanic spellings ASR transcribes
-          // differently (الصلوة→الصلاة, ومما→وما) without false divergences.
           final div = findDivergenceIndex(
             full, _verse!.textUthmani,
-            tolerateMisses: 2,
+            tolerateMisses: 1,
           );
           setState(() {
             _matched = matched;
             _divergenceIdx = div >= 0 ? div : null;
           });
-          // Completion: allow up to 2 misses (consistent with tolerateMisses=2).
-          if (div < 0 && matched >= _verse!.words.length - 2) {
-            Future.delayed(const Duration(milliseconds: 700), () {
-              if (!mounted) return;
-              setState(() => _matched = 0);
-            });
-          } else if (div >= 0) {
+
+          // Completion guard: require at least 75% of words matched so short
+          // verses don't advance after a single lucky word.
+          if (div < 0) {
+            final eLen = _verse!.textUthmani.trim().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).length;
+            final minWords = eLen <= 3 ? eLen : (eLen * 0.75).ceil().clamp(3, eLen);
+            if (matched >= minWords) {
+              _service.stop();
+              Future.delayed(const Duration(milliseconds: 700), () {
+                if (!mounted) return;
+                _nextVerse();
+              });
+            }
+          } else {
             _maybeBeep();
             _checkDrift(full);
           }
@@ -155,12 +206,7 @@ class _ReciteScreenState extends State<ReciteScreen> {
     final now = DateTime.now();
     if (now.difference(_lastBeep).inMilliseconds < 2000) return;
     _lastBeep = now;
-    // Use a built-in system sound via AssetSource fallback to a tone-like sound.
-    // Simplest cross-platform: use a quick double-vibration via the OS bell.
-    // audioplayers doesn't have a built-in tone, so play silence + rely on
-    // Material's HapticFeedback for tactile cue.
-    // Visual flash + heavy haptic ARE the beep on mobile.
-    // Keep this no-op for now — visual cue handles it.
+    // Visual flash via divergenceIdx highlight acts as the cue on mobile.
   }
 
   @override
@@ -174,11 +220,18 @@ class _ReciteScreenState extends State<ReciteScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final parts = _verseKey.split(':');
+    final surah = int.parse(parts[0]);
+    final ayah = int.parse(parts[1]);
+    final isFirst = surah == 1 && ayah == 1;
+    final isLast = surah == 114 && ayah == _surahVerseCounts[113];
+
     return Scaffold(
       appBar: AppBar(title: const Text('Recite')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Parah selector
           Card(
             child: Padding(
               padding: const EdgeInsets.all(12),
@@ -200,6 +253,7 @@ class _ReciteScreenState extends State<ReciteScreen> {
                             label: Text('$n'),
                             selected: n == _parah,
                             onSelected: (_) {
+                              _service.stop();
                               setState(() {
                                 _parah = n;
                                 _verseKey = _firstVerseOfParah(n);
@@ -216,6 +270,8 @@ class _ReciteScreenState extends State<ReciteScreen> {
             ),
           ),
           const SizedBox(height: 12),
+
+          // Drift alert
           if (_driftKey != null)
             Container(
               padding: const EdgeInsets.all(12),
@@ -234,12 +290,14 @@ class _ReciteScreenState extends State<ReciteScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Your recitation matches $_driftKey ${(_driftScore * 100).round()}% vs ${(_expectedScore * 100).round()}% for $_verseKey. Go back.',
+                    'Your recitation matches $_driftKey ${(_driftScore * 100).round()}% vs ${(_expectedScore * 100).round()}% for $_verseKey.',
                     style: TextStyle(fontSize: 12, color: Colors.red.shade800),
                   ),
                 ],
               ),
             ),
+
+          // Verse card with mic
           Card(
             child: Padding(
               padding: const EdgeInsets.all(14),
@@ -287,6 +345,8 @@ class _ReciteScreenState extends State<ReciteScreen> {
               ),
             ),
           ),
+
+          // Transcript
           if (_transcript.isNotEmpty) ...[
             const SizedBox(height: 12),
             Card(
@@ -309,6 +369,8 @@ class _ReciteScreenState extends State<ReciteScreen> {
               ),
             ),
           ],
+
+          // Error
           if (_error != null) ...[
             const SizedBox(height: 12),
             Container(
@@ -320,6 +382,39 @@ class _ReciteScreenState extends State<ReciteScreen> {
               child: Text(_error!, style: TextStyle(color: Colors.red.shade800, fontSize: 12)),
             ),
           ],
+
+          // Previous / Next navigation
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: isFirst ? null : _prevVerse,
+                  icon: const Icon(Icons.arrow_back),
+                  label: const Text('Previous'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: isLast ? null : _nextVerse,
+                  icon: const Icon(Icons.arrow_forward),
+                  label: const Text('Next'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    backgroundColor: colors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
         ],
       ),
     );
