@@ -23,6 +23,9 @@ export default function SelfTestPage() {
   const [loading, setLoading] = useState(false);
   const [started, setStarted] = useState(false);
   const [answered, setAnswered] = useState<string[]>([]);
+  const [bookmarkToast, setBookmarkToast] = useState<{ msg: string; ok: boolean } | null>(null);
+  // Wrong answers tracked locally — shown even when bookmark API is unavailable.
+  const [localWeak, setLocalWeak] = useState<string[]>([]);
 
   // Log a Self-Test session as an Activity Day once the user has answered
   // a meaningful number of questions. No-op if not signed in / scope missing.
@@ -63,12 +66,35 @@ export default function SelfTestPage() {
     }));
     setAnswered((a) => (a.includes(question.correctKey) ? a : [...a, question.correctKey]));
     if (key !== question.correctKey) {
-      // auto-bookmark wrong answers (silently fail if not signed in)
+      // Track locally so the weak list is visible regardless of API outcome.
+      setLocalWeak((prev) =>
+        prev.includes(question.correctKey) ? prev : [...prev, question.correctKey],
+      );
+      // Auto-bookmark wrong answers and surface any error to the user.
       fetch('/api/user/bookmarks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ verseKey: question.correctKey }),
-      }).catch(() => {});
+      })
+        .then(async (res) => {
+          if (res.ok) {
+            setBookmarkToast({ msg: '🔖 Bookmarked as weak verse', ok: true });
+          } else {
+            const j = await res.json().catch(() => ({}));
+            const reason =
+              res.status === 403
+                ? 'Token missing bookmark scope — please sign out and sign in again.'
+                : j.error === 'not authenticated'
+                  ? 'Not signed in — bookmark was not saved to your account.'
+                  : `Bookmark failed: ${j.error ?? res.status}`;
+            setBookmarkToast({ msg: `⚠ ${reason}`, ok: false });
+          }
+          setTimeout(() => setBookmarkToast(null), 3500);
+        })
+        .catch(() => {
+          setBookmarkToast({ msg: '⚠ Network error — bookmark not saved.', ok: false });
+          setTimeout(() => setBookmarkToast(null), 3500);
+        });
     }
   }
 
@@ -77,6 +103,19 @@ export default function SelfTestPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-5 py-8">
+      {/* Bookmark toast */}
+      {bookmarkToast && (
+        <div
+          className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl shadow-lg text-sm font-medium transition-all ${
+            bookmarkToast.ok
+              ? 'bg-emerald-700 text-white'
+              : 'bg-red-700 text-white'
+          }`}
+        >
+          {bookmarkToast.msg}
+        </div>
+      )}
+
       <header className="mb-6">
         <h1 className="text-3xl font-bold tracking-tight">Self-Test</h1>
         <p className="mt-2 text-[color:var(--ink-muted)]">
@@ -107,6 +146,30 @@ export default function SelfTestPage() {
           >
             Start Quiz →
           </button>
+        </div>
+      )}
+
+      {localWeak.length > 0 && (
+        <div className="card p-4 mb-5 border-l-4 border-amber-500 bg-amber-50/60 dark:bg-amber-900/10">
+          <p className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider mb-2">
+            ⚠ Wrong this session ({localWeak.length})
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {localWeak.map((k) => {
+              const [s] = k.split(':').map(Number);
+              return (
+                <span
+                  key={k}
+                  className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 text-xs font-semibold"
+                >
+                  {k}
+                </span>
+              );
+            })}
+          </div>
+          <p className="text-[10px] text-amber-600/80 dark:text-amber-400/60 mt-2">
+            These are tracked in this browser session. If your account has the bookmark scope enabled they're also saved to your profile.
+          </p>
         </div>
       )}
 

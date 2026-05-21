@@ -32,6 +32,7 @@ export default function DashboardPage() {
   const [activity, setActivity] = useState<RawActivityDay[]>([]);
   const [bookmarks, setBookmarks] = useState<BookmarkRow[]>([]);
   const [scopeNote, setScopeNote] = useState<string | null>(null);
+  const [needsRelogin, setNeedsRelogin] = useState(false);
   const [insight, setInsight] = useState<InsightData | null>(null);
   const [insightLoading, setInsightLoading] = useState(false);
   const [insightError, setInsightError] = useState<string | null>(null);
@@ -42,6 +43,7 @@ export default function DashboardPage() {
       .then((r) => r.json())
       .then((j) => {
         setActivity(Array.isArray(j.days) ? j.days : []);
+        if (j.reason === 'scope_missing') setNeedsRelogin(true);
       })
       .catch(() => setActivity([]));
 
@@ -49,18 +51,31 @@ export default function DashboardPage() {
       .then((r) => r.json())
       .then((j) => {
         if (j.scopeMissing) {
-          setScopeNote('Bookmarks scope not yet active in Vercel — once you set QURAN_OAUTH_SCOPES the chart fills in.');
+          setNeedsRelogin(true);
+          setScopeNote(null); // replaced by needsRelogin banner
         }
-        const list = (j.bookmarks ?? []) as Array<{ key?: string; verse_key?: string }>;
+        const list = (j.bookmarks ?? []) as Array<{
+          key?: string | number;
+          verse_key?: string;
+          verseNumber?: number;
+        }>;
         const rows: BookmarkRow[] = [];
         for (const b of list) {
-          const key = b.key ?? b.verse_key;
-          if (!key) continue;
-          const [s, a] = key.split(':').map(Number);
+          // QF returns either verse_key:"2:14" or key:<surahInt> + verseNumber:<ayahInt>
+          let verseKey: string | null = null;
+          if (typeof b.verse_key === 'string' && b.verse_key.includes(':')) {
+            verseKey = b.verse_key;
+          } else if (typeof b.key === 'string' && b.key.includes(':')) {
+            verseKey = b.key;
+          } else if (typeof b.key === 'number' && typeof b.verseNumber === 'number') {
+            verseKey = `${b.key}:${b.verseNumber}`;
+          }
+          if (!verseKey) continue;
+          const [s, a] = verseKey.split(':').map(Number);
           if (!s || !a) continue;
           const entry = getMutashabihatForVerse(s, a);
           rows.push({
-            key,
+            key: verseKey,
             difficulty: entry ? classifyDifficulty(entry.similar.length) : 'unknown',
             similarCount: entry?.similar.length ?? 0,
           });
@@ -138,7 +153,22 @@ export default function DashboardPage() {
         </p>
       </header>
 
-      {scopeNote && (
+      {needsRelogin && (
+        <div className="px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-400 dark:border-amber-700 text-sm text-amber-900 dark:text-amber-100 flex items-center justify-between gap-4 flex-wrap">
+          <span>
+            <strong>Your session is missing API scopes</strong> — bookmarks, activity, and streak
+            data won&apos;t save until you sign out and sign back in.
+          </span>
+          <button
+            onClick={() => { window.location.href = '/api/auth/logout'; }}
+            className="shrink-0 px-3 py-1.5 rounded-full bg-amber-600 text-white text-xs font-semibold hover:bg-amber-700 transition"
+          >
+            Sign out &amp; re-login
+          </button>
+        </div>
+      )}
+
+      {scopeNote && !needsRelogin && (
         <div className="px-4 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 text-xs text-amber-800 dark:text-amber-200">
           {scopeNote}
         </div>

@@ -16,7 +16,7 @@ interface Options {
  * Fire `POST /api/user/activity` once we've crossed `minVerses` and then
  * roughly every `debounceMs` after that with the cumulative range.
  *
- * Gracefully no-ops if the user isn't signed in or the activityday.crud
+ * Gracefully no-ops if the user isn't signed in or the activity_day
  * scope hasn't been granted yet by QF — the route returns 401/skipped.
  */
 export function useActivityTracker({

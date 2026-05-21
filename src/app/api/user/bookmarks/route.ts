@@ -34,7 +34,7 @@ export async function POST(req: Request) {
   const result = await bookmarks.create(verseKey);
   if (!result.ok) {
     if (result.reason === 'scope_missing') {
-      return NextResponse.json({ error: 'bookmark.crud scope not yet granted' }, { status: 403 });
+      return NextResponse.json({ error: 'bookmark scope not granted — re-login required' }, { status: 403 });
     }
     return NextResponse.json(
       { error: result.reason, message: result.message },

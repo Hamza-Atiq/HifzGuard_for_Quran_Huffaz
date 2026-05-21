@@ -16,14 +16,13 @@ function userClientSecret(): string | undefined {
   return process.env.QURAN_USER_CLIENT_SECRET || process.env.QURAN_CLIENT_SECRET;
 }
 
-// Scopes are read from env so we can flip them on as QF enables them on the
-// client, without a code redeploy. Default is the minimum that's known to be
-// allowed on a fresh QF prelive client (openid + profile). Set
-// QURAN_OAUTH_SCOPES to a space-separated list to request more, e.g.:
-//   openid profile bookmark.crud collection.crud goal.crud streak.read
-//   activityday.crud note.crud reading_session.crud post.read post.crud
+// QF prelive scope names (confirmed by QF team — different from the docs):
+//   bookmark  collection  note  goal  streak  activity_day
+//   reading_session  post  comment
+// Override with QURAN_OAUTH_SCOPES env var only if you need a custom set.
 const SCOPES =
-  process.env.QURAN_OAUTH_SCOPES?.trim() || 'openid profile';
+  process.env.QURAN_OAUTH_SCOPES?.trim() ||
+  'openid profile bookmark collection note goal streak activity_day reading_session post comment';
 
 const TOKEN_COOKIE = 'qf_access_token';
 const REFRESH_COOKIE = 'qf_refresh_token';
