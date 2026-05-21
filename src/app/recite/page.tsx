@@ -77,14 +77,18 @@ export default function RecitePage() {
   // Shared handler — called by both Web Speech (realtime) and Whisper (fallback)
   function handleTranscript(full: string) {
     if (!verse || completedRef.current) return;
-    const result = findDivergence(full, verse.textUthmani);
+    // tolerateMisses=2 handles Uthmanic spellings that ASR transcribes differently
+    // (e.g. الصلوة → الصلاة, ومما → وما) without declaring false divergences.
+    const result = findDivergence(full, verse.textUthmani, { tolerateMisses: 2 });
     setMatchedWords(result.matchedCount);
     setDivergenceIdx(result.divergenceIndex);
 
     if (result.completed) {
       completedRef.current = true;
       setCompletedVerses((c) => c + 1);
-      webSpeech.clearTranscript();
+      // Restart the recognition session immediately so the old session's
+      // accumulated buffer doesn't bleed into the next verse's transcript.
+      webSpeech.restart();
       setTimeout(() => {
         completedRef.current = false;
         setIndex((i) => Math.min(verseKeys.length - 1, i + 1));
@@ -93,12 +97,13 @@ export default function RecitePage() {
     }
 
     if (result.divergenceIndex !== null) {
-      // Only beep when divergence is clearly within recited territory, not at
-      // the very edge where it could be a frontier artefact.
-      const withinRecited = result.divergenceIndex < result.matchedCount + 2;
+      // Only beep when divergence falls within what has actually been recited.
+      // A divergence at matchedCount+3 or beyond is a frontier artefact from
+      // the lookahead algorithm, not a real error.
+      const withinRecited = result.divergenceIndex <= result.matchedCount + 3;
       if (withinRecited) {
         const now = Date.now();
-        if (now - lastBeepedAt.current > 1500) {
+        if (now - lastBeepedAt.current > 2000) {
           playMistakeBeep();
           lastBeepedAt.current = now;
         }
@@ -162,9 +167,11 @@ export default function RecitePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Reset transcript when verse changes
+  // When verse changes, restart recognition so the old session's buffer is
+  // fully discarded — clearTranscript() alone doesn't stop the session and
+  // final results from the old verse can still arrive and corrupt the new one.
   useEffect(() => {
-    webSpeech.clearTranscript();
+    webSpeech.restart();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentKey]);
 

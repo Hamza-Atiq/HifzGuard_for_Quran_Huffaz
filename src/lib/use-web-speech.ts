@@ -17,6 +17,11 @@ export interface UseWebSpeechState {
   start: () => void;
   stop: () => void;
   clearTranscript: () => void;
+  /** Stop the current recognition session, clear the transcript buffer, and
+   *  immediately start a fresh session if we were listening. Use this on
+   *  verse changes to prevent the old session's accumulated results from
+   *  bleeding into the next verse's matching. */
+  restart: () => void;
 }
 
 export function useWebSpeech(opts: UseWebSpeechOptions = {}): UseWebSpeechState {
@@ -100,7 +105,6 @@ export function useWebSpeech(opts: UseWebSpeechOptions = {}): UseWebSpeechState 
       setError('SpeechRecognition not supported. Use Chrome or Edge.');
       return;
     }
-    // Reset
     stoppingRef.current = false;
     finalRef.current = '';
     setTranscript('');
@@ -120,6 +124,24 @@ export function useWebSpeech(opts: UseWebSpeechOptions = {}): UseWebSpeechState 
     setStatus('idle');
   }, []);
 
+  const restart = useCallback(() => {
+    // Kill the current session — orphan its onend so it doesn't auto-restart.
+    const wasListening = !!recRef.current;
+    const oldRec = recRef.current;
+    recRef.current = null; // onend guard: oldRec !== recRef.current → no auto-restart
+    finalRef.current = '';
+    setTranscript('');
+    try {
+      oldRec?.stop();
+    } catch {
+      // ignore
+    }
+    if (wasListening && Ctor) {
+      // Fresh session — transcript buffer is clean.
+      startRecognition();
+    }
+  }, [Ctor, startRecognition]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -132,5 +154,5 @@ export function useWebSpeech(opts: UseWebSpeechOptions = {}): UseWebSpeechState 
     };
   }, []);
 
-  return { status, error, transcript, supported, start, stop, clearTranscript };
+  return { status, error, transcript, supported, start, stop, clearTranscript, restart };
 }

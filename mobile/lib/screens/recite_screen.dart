@@ -56,6 +56,9 @@ class _ReciteScreenState extends State<ReciteScreen> {
   }
 
   Future<void> _loadVerse() async {
+    // Immediately clear the service transcript so any chunk that arrives
+    // during the fetch doesn't match against the previous verse's text.
+    _service.updateVerseText(null);
     setState(() {
       _verse = null;
       _similarTexts = {};
@@ -77,7 +80,6 @@ class _ReciteScreenState extends State<ReciteScreen> {
         _verse = vs.isNotEmpty ? vs.first : null;
         _similarTexts = similar;
       });
-      // Keep the service aware of which verse we're on so Groq gets the right prompt
       _service.updateVerseText(_verse?.textUthmani);
     } catch (e) {
       setState(() => _error = e.toString());
@@ -101,17 +103,21 @@ class _ReciteScreenState extends State<ReciteScreen> {
         setState(() => _transcript = full);
         if (_verse != null) {
           final matched = matchedCount(full, _verse!.textUthmani);
-          final div = findDivergenceIndex(full, _verse!.textUthmani);
+          // tolerateMisses=2: handles Uthmanic spellings ASR transcribes
+          // differently (الصلوة→الصلاة, ومما→وما) without false divergences.
+          final div = findDivergenceIndex(
+            full, _verse!.textUthmani,
+            tolerateMisses: 2,
+          );
           setState(() {
             _matched = matched;
             _divergenceIdx = div >= 0 ? div : null;
           });
-          if (div < 0 && matched >= _verse!.words.length - 1) {
-            // verse complete — advance after a short delay
+          // Completion: allow up to 2 misses (consistent with tolerateMisses=2).
+          if (div < 0 && matched >= _verse!.words.length - 2) {
             Future.delayed(const Duration(milliseconds: 700), () {
               if (!mounted) return;
               setState(() => _matched = 0);
-              // Don't auto-advance to next verse — let user navigate
             });
           } else if (div >= 0) {
             _maybeBeep();
@@ -147,7 +153,7 @@ class _ReciteScreenState extends State<ReciteScreen> {
 
   Future<void> _maybeBeep() async {
     final now = DateTime.now();
-    if (now.difference(_lastBeep).inMilliseconds < 1500) return;
+    if (now.difference(_lastBeep).inMilliseconds < 2000) return;
     _lastBeep = now;
     // Use a built-in system sound via AssetSource fallback to a tone-like sound.
     // Simplest cross-platform: use a quick double-vibration via the OS bell.
